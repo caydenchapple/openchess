@@ -116,3 +116,31 @@ test('trainingPlan and aggregate work from stored reviews', () => {
   assert.match(plan.summary, /1 reviewed game/);
   assert.equal(plan.weekly.length, 5);
 });
+
+import { STARTER_FENS, matingMoves, starterPuzzles } from '../client/src/starter-puzzles.js';
+
+test('every starter puzzle has a checkmate in one, and the stored answer delivers it', () => {
+  assert.ok(STARTER_FENS.length >= 5);
+  for (const f of STARTER_FENS) assert.ok(matingMoves(f).length >= 1, f);
+  for (const p of starterPuzzles()) {
+    const c = new Chess(p.fen); c.move({ from: p.best.slice(0, 2), to: p.best.slice(2, 4), promotion: p.best[4] });
+    assert.equal(c.isCheckmate(), true, p.fen);
+  }
+});
+
+test('explanations use correct grammar and say something true when the evaluation label does not change', () => {
+  const { fens, review } = scholars();
+  const ply = { ...review.plies[5], tags: [], cls: 'inaccuracy', cpBefore: 80, cpAfter: 50, refute: null };
+  const text = explainPly(ply, fens[5], fens[6]);
+  assert.match(text, /was an inaccuracy/);
+  assert.match(text, /let your position slip a little \(still slightly better\)/);
+  assert.doesNotMatch(text, /a inaccuracy|from slightly better to slightly better/);
+});
+
+test('a resignation is described as one, and short games are flagged', () => {
+  const { fens, review } = scholars();
+  const game = { color: 'b', outcome: 'loss', opponent: { name: 'Alice', rating: 1200 }, reason: 'resignation' };
+  const r = reviewReport({ review, game, fens });
+  assert.match(r.summary, /You resigned against Alice as Black after 4 moves/);
+  assert.match(r.summary, /short game/);
+});

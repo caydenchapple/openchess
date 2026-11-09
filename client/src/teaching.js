@@ -29,7 +29,7 @@ const tutorial = createTutorial({
   steps: reviewSteps,
 });
 
-const coach = createCoach(tutorial, { input, bindings, skipLabel: 'Skip tips' });
+const coach = createCoach(tutorial, { input, bindings, skipLabel: 'Skip tips', keepClear: () => [document.querySelector('.top')].filter(Boolean) });
 
 // A step that points at something below the fold brings it into view (once per step) instead of covering the board.
 let scrolledFor = null;
@@ -64,7 +64,7 @@ const tips = createTips({
 const CONTROLS = [
   { icon: '♟', label: '{Tap}', text: 'a piece, then a highlighted square — or drag the piece' },
   { icon: '♕', label: 'Promotion', text: 'pick a piece when a pawn reaches the last rank' },
-  { icon: '⏱', label: 'Clocks', text: 'start after Black\'s first move' },
+  { icon: '⏱', label: 'Clocks', text: '(timed games) start after Black\'s first move' },
   { icon: '💡', label: 'Hint / Take back', text: 'help you, but the game becomes unrated' },
   { icon: '🎓', label: 'After a game', text: 'open "Review my game" for mistakes, accuracy and lessons' },
   { icon: '⌨', label: '← →', text: 'step through moves in a review (↑ ↓ jump to start / end)' },

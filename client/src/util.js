@@ -71,3 +71,18 @@ export function resultFor(result, color) {
   if (result === '0-1') return color === 'b' ? 'win' : 'loss';
   return 'none';
 }
+
+/**
+ * Confirmation without a browser dialog: the first click changes the button's label, a second click within 5 s runs `fn`.
+ * Use as onclick: `twoStep('Click again to delete', fn)`.
+ */
+export function twoStep(label, fn) {
+  let armed = null; let original = '';
+  return (e) => {
+    const btn = e.currentTarget;
+    if (armed) { clearTimeout(armed); armed = null; fn(e); return; }
+    original = btn.textContent;
+    btn.textContent = label;
+    armed = setTimeout(() => { armed = null; btn.textContent = original; }, 5000);
+  };
+}

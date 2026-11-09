@@ -1,5 +1,5 @@
 // Skill profile: ratings, trends, weak spots, training plan, and settings. Everything is local.
-import { h, clear, toast, round } from '../util.js';
+import { h, clear, toast, round, twoStep } from '../util.js';
 import { get, save, setName, setSetting, exportData, importData, wipe } from '../store.js';
 import { aggregate, sparkline } from '../stats.js';
 import { isProvisional, title } from '../rating.js';
@@ -14,9 +14,9 @@ export function mount(root) {
 
   const ratingCard = (label, pool) => h('div', { class: 'card stat' },
     h('div', { class: 'l' }, label),
-    h('div', { class: 'v' }, `${pool.r}${isProvisional(pool) ? '?' : ''}`),
-    h('div', { class: 'l' }, `${title(pool.r)} · ${pool.games} rated game${pool.games === 1 ? '' : 's'}`),
-    sparkline(pool.history.slice(-40).map((x) => x.r)));
+    h('div', { class: 'v' }, String(pool.r)),
+    h('div', { class: 'l' }, `${title(pool.r)} · ${pool.games} rated game${pool.games === 1 ? '' : 's'}${isProvisional(pool) ? ' · still settling' : ''}`),
+    pool.history.length >= 2 ? sparkline(pool.history.slice(-40).map((x) => x.r)) : null);
 
   const header = h('div', { class: 'row between' },
     h('div', {}, h('h1', { style: { margin: 0 } }, st.player.name), h('div', { class: 'muted small' }, 'Stored only in this browser — no account.')),
@@ -102,7 +102,7 @@ export function mount(root) {
       h('div', { class: 'controls' },
         h('button', { onclick: () => { const blob = new Blob([exportData()], { type: 'application/json' }); const a = h('a', { href: URL.createObjectURL(blob), download: 'openchess-backup.json' }); a.click(); } }, 'Export data'),
         h('label', { class: 'btn', style: { margin: 0 } }, 'Import data', h('input', { type: 'file', accept: 'application/json', hidden: true, onchange: async (e) => { try { importData(await e.target.files[0].text()); toast('Imported'); location.reload(); } catch (err) { toast(err.message); } } })),
-        h('button', { class: 'danger', onclick: () => { if (confirm('Delete all games, ratings and settings stored in this browser?')) { wipe(); location.reload(); } } }, 'Delete all my data')));
+        h('button', { class: 'danger', onclick: twoStep('Click again to delete everything', () => { wipe(); location.reload(); }) }, 'Delete all my data')));
   }
   return () => {};
 }

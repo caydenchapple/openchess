@@ -5,7 +5,7 @@ import { Board, moveKind } from '../board.js';
 import { engine, LEVELS } from '../engine.js';
 import { net } from '../net.js';
 import { get, addGame, save, findGame } from '../store.js';
-import { applyResult, isProvisional } from '../rating.js';
+import { applyResult } from '../rating.js';
 import { play } from '../sound.js';
 import { teaching } from '../teaching.js';
 import { session, saveActive, loadActive, clearActive, TC_LABEL } from '../session.js';
@@ -46,6 +46,9 @@ export function mount(root) {
   root.append(h('div', { class: 'card' }, h('span', { class: 'spinner' }), ' Setting up the board…'));
 
   // ---------- entry ----------
+  const readOnline = () => { try { return JSON.parse(localStorage.getItem(ONLINE_KEY)); } catch { return null; } };
+  const clearOnline = () => { try { localStorage.removeItem(ONLINE_KEY); } catch { /* ignore */ } };
+
   (async function init() {
     if (cfg?.mode === 'computer') return startComputer(cfg);
     if (cfg?.mode === 'online') return startOnline(cfg.first);
@@ -67,12 +70,10 @@ export function mount(root) {
     location.hash = '#/play';
   }());
 
-  const readOnline = () => { try { return JSON.parse(localStorage.getItem(ONLINE_KEY)); } catch { return null; } };
-  const clearOnline = () => { try { localStorage.removeItem(ONLINE_KEY); } catch { /* ignore */ } };
-
   // ---------- layout ----------
   function buildLayout() {
     clear(root);
+    dom.boardcol = null;
     dom.oppName = h('span', { class: 'name' }); dom.oppRating = h('span', { class: 'rating' }); dom.oppStatus = h('span', { class: 'status' });
     dom.meName = h('span', { class: 'name' }); dom.meRating = h('span', { class: 'rating' });
     dom.oppClock = h('div', { class: 'clock' }); dom.meClock = h('div', { class: 'clock' });
@@ -83,15 +84,16 @@ export function mount(root) {
     dom.controls = h('div', { class: 'controls' });
     dom.result = h('div', { class: 'stack' });
     root.append(h('div', { class: 'game' },
-      h('div', { class: 'boardcol' },
+      (dom.boardcol = h('div', { class: 'boardcol' },
         h('div', { class: 'pbar' }, h('div', {}, h('div', { class: 'who' }, dom.oppName, dom.oppRating, dom.oppStatus), dom.oppCap), dom.oppClock),
         dom.boardEl,
-        h('div', { class: 'pbar' }, h('div', {}, h('div', { class: 'who' }, dom.meName, dom.meRating), dom.meCap), dom.meClock)),
+        h('div', { class: 'pbar' }, h('div', {}, h('div', { class: 'who' }, dom.meName, dom.meRating), dom.meCap), dom.meClock))),
       h('div', { class: 'side stack' },
-        h('div', { class: 'card' }, dom.status, h('div', { style: { marginTop: '.8rem' } }, dom.moves), dom.controls),
+        h('div', { class: 'card' }, dom.status, dom.controls, h('div', { style: { marginTop: '.8rem' } }, dom.moves)),
         dom.result)));
     dom.side = root.querySelector('.side');
-    dom.side.prepend(teaching.card.el); // inside the side panel, not floating over the board
+    dom.side.insertBefore(teaching.card.el, dom.result); // inside the side panel, below the buttons, so fading never moves them
+    window.scrollTo(0, 0);
     teaching.card.show();
     cleanups.push(() => { teaching.card.hide(); document.body.append(teaching.card.el); });
   }
@@ -132,7 +134,7 @@ export function mount(root) {
     G = {
       mode: 'computer', color: c.color, level, time: c.time, inc: c.inc,
       me: { name: get().player.name, rating: get().ratings.computer.r },
-      opp: { name: `Stockfish · ${level.name}`, rating: level.elo },
+      opp: { name: `Computer · ${level.name}`, rating: level.elo },
       id: uid(10),
     };
     timed = c.time > 0;
@@ -239,6 +241,7 @@ export function mount(root) {
   function commit(m, who) {
     let mv;
     try { mv = chess.move(m); } catch { board.setPosition(chess.fen()); return; }
+    board.setArrows([]); // a hint arrow is only good for the position it was drawn on
     if (who === 'me') {
       // the board already shows the piece moved by the user; just sync last-move/dests
       board.setPosition(chess.fen(), { lastMove: [mv.from, mv.to] });
@@ -294,7 +297,8 @@ export function mount(root) {
     let record = null;
     if (!aborted && chess.history().length >= 2) {
       const pool = get().ratings[G.mode === 'online' ? 'online' : 'computer'];
-      const rated = !(G.mode === 'computer' && hintUsed);
+      const tooShort = reason === 'resignation' && chess.history().length < 6; // a quick resign is not a real game
+      const rated = !(G.mode === 'computer' && hintUsed) && !tooShort;
       let change = null;
       if (rated) change = applyResult(pool, G.opp.rating, outcome === 'win' ? 1 : outcome === 'draw' ? 0.5 : 0);
       record = {
@@ -326,7 +330,7 @@ export function mount(root) {
   // ---------- rendering ----------
   function renderAll() {
     dom.meName.textContent = G.me.name;
-    dom.meRating.textContent = `(${G.me.rating}${G.mode === 'computer' && isProvisional(get().ratings.computer) ? '?' : ''})`;
+    dom.meRating.textContent = `(${G.me.rating})`;
     dom.oppName.textContent = G.opp.name;
     dom.oppRating.textContent = `(${G.opp.rating})`;
     const { adv, caps } = materialDiff(chess.fen());
@@ -370,7 +374,7 @@ export function mount(root) {
     return () => {
       if (confirming === key) { confirming = null; fn(); } else {
         confirming = key; renderControls();
-        setTimeout(() => { if (confirming === key) { confirming = null; renderControls(); } }, 3000);
+        setTimeout(() => { if (confirming === key) { confirming = null; renderControls(); } }, 5000);
       }
     };
   }
@@ -380,7 +384,7 @@ export function mount(root) {
     clear(dom.controls);
     if (over) return;
     const plies = chess.history().length;
-    dom.controls.append(h('button', { onclick: () => board.flip() }, '⇅ Flip'));
+    dom.controls.append(h('button', { onclick: () => { board.flip(); dom.boardcol.classList.toggle('flipped'); } }, '⇅ Flip'));
     if (G.mode === 'computer') {
       dom.controls.append(
         h('button', { disabled: plies < (G.color === 'w' ? 2 : 3) || chess.turn() !== G.color, onclick: takeback, title: 'Undo your last move (makes the game unrated)' }, '↶ Take back'),
@@ -394,13 +398,14 @@ export function mount(root) {
         dom.controls.append(h('button', { onclick: () => { net.send({ t: 'draw', action: 'offer' }); toast('Draw offered'); } }, '½ Offer draw'));
       }
     }
+    if (G.mode === 'computer') dom.controls.append(h('p', { class: 'small muted ctrl-note' }, 'Hint and Take back make the game unrated.'));
     const resignLabel = G.mode === 'online' && plies < 2 ? 'Abort' : 'Resign';
-    dom.controls.append(h('button', { class: 'danger', onclick: armConfirm('resign', doResign) }, confirming === 'resign' ? `Confirm ${resignLabel.toLowerCase()}?` : `⚑ ${resignLabel}`));
+    dom.controls.append(h('button', { class: 'danger', onclick: armConfirm('resign', doResign) }, confirming === 'resign' ? (plies >= 6 ? 'Resign? Counts as a loss' : `Confirm ${resignLabel.toLowerCase()}?`) : `⚑ ${resignLabel}`));
   }
 
   function doResign() {
     if (G.mode === 'online') { net.send({ t: 'resign' }); return; }
-    if (chess.history().length < 2) { over = true; clearActive(); location.hash = '#/play'; return; }
+    if (chess.history().length < 2) { over = true; clearActive(); toast('Game cancelled — nothing was lost.'); location.hash = '#/play'; return; }
     finish(G.color === 'w' ? '0-1' : '1-0', 'resignation');
   }
 
@@ -421,7 +426,11 @@ export function mount(root) {
     hintUsed = true;
     toast('Hint used — this game will be unrated.');
     const { best } = await engine.search(chess.fen(), { depth: 12, movetime: 1500 });
-    if (best && !over) board.setArrows([{ from: best.slice(0, 2), to: best.slice(2, 4), brush: 'green' }]);
+    if (best && !over) {
+      board.setArrows([{ from: best.slice(0, 2), to: best.slice(2, 4), brush: 'green' }]);
+      const hm = chess.moves({ verbose: true }).find((x) => x.from === best.slice(0, 2) && x.to === best.slice(2, 4));
+      if (hm) toast(`Hint: try ${hm.san} (the green arrow)`);
+    }
     persist();
   }
 
@@ -436,8 +445,8 @@ export function mount(root) {
       const d = record.rating.delta;
       box.append(h('p', {}, `Rating: ${record.rating.before} → `, h('b', {}, String(record.rating.after)), ' ',
         h('span', { class: `delta ${d >= 0 ? 'up' : 'down'}` }, `(${d >= 0 ? '+' : ''}${d})`),
-        h('span', { class: 'muted small' }, ` ${record.rating.pool === 'online' ? 'online' : 'vs computer'} rating`)));
-    } else if (record && !record.rated) box.append(h('p', { class: 'muted' }, 'Unrated (hint or takeback used).'));
+        h('span', { class: 'muted small' }, record.rating.pool === 'online' ? ' (your online rating)' : ' (your rating against the computer)')));
+    } else if (record && !record.rated) box.append(h('p', { class: 'muted' }, record.plies < 6 ? 'Too short to count for your rating.' : 'Unrated (hint or takeback used).'));
     const actions = h('div', { class: 'controls' });
     if (record) {
       actions.append(h('a', { class: 'btn primary big', href: `#/review/${record.id}` }, '🎓 Review my game'));

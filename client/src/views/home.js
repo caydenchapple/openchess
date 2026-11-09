@@ -1,4 +1,4 @@
-import { h } from '../util.js';
+import { h, twoStep } from '../util.js';
 import { Board } from '../board.js';
 import { get } from '../store.js';
 import { net } from '../net.js';
@@ -29,7 +29,7 @@ export function mount(root) {
         unfinished
           ? h('div', { class: 'stack' },
             h('button', { class: 'btn primary huge', onclick: () => { session.cfg = { resume: true }; location.hash = '#/game'; } }, '▶ Continue your game'),
-            h('button', { class: 'btn big', onclick: quickGame }, 'Start a new game'))
+            h('button', { class: 'btn big', onclick: twoStep('Click again to replace your unfinished game', quickGame) }, 'Start a new game'))
           : h('button', { class: 'btn primary huge', onclick: quickGame }, '▶ Play now'),
         h('p', { class: 'small-links' },
           h('a', { href: '#/play' }, 'Pick a different opponent'),

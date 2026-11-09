@@ -10,6 +10,7 @@ const VAL = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
 const MATE = 9000;
 const sideName = (c) => (c === 'w' ? 'White' : 'Black');
 const upper = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const an = (word) => (/^[aeiou]/i.test(word) ? 'an' : 'a');
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const moveLabel = (i, san) => `${Math.floor(i / 2) + 1}${i % 2 === 0 ? '.' : '...'} ${san}`;
 
@@ -76,9 +77,10 @@ export function explainPly(ply, fenBefore, fenAfter) {
     parts.push(`You were ${standing(ply.cpBefore)}, but ${ply.san} let it slip (now ${standing(ply.cpAfter)}).`);
     if (best) parts.push(`${best.san} kept the advantage${describeMove(best) ? ` — it ${describeMove(best)}` : ''}.`);
   } else {
-    parts.push(`${ply.san} was a ${ply.cls}: the position went from ${standing(ply.cpBefore)} to ${standing(ply.cpAfter)} for you.`);
+    const before = standing(ply.cpBefore); const after = standing(ply.cpAfter);
+    parts.push(`${ply.san} was ${an(ply.cls)} ${ply.cls}: ${before === after ? `it let your position slip a little (still ${after})` : `the position went from ${before} to ${after} for you`}.`);
     if (best) parts.push(`The engine preferred ${best.san}${describeMove(best) ? `, which ${describeMove(best)}` : ''}.`);
-    if (reply && !reply.captured) parts.push(`After your move, ${reply.san} becomes strong for your opponent.`);
+    if (reply) parts.push(`After that, your opponent can play ${reply.san}${describeMove(reply) ? `, which ${describeMove(reply)}` : ', which is strong'}.`);
   }
   if (ply.phase === 'opening' && !tags.includes('missed-mate')) parts.push('In the opening: develop pieces, fight for the centre, castle early.');
   if (ply.phase === 'endgame') parts.push('In endgames, activate your king and think about pawn races and the opposition.');
@@ -114,7 +116,7 @@ const THEME_LESSONS = {
   'opening-mistake': {
     title: 'Build a simple opening repertoire',
     body: (n) => `You made ${plural(n, 'opening inaccuracy')}. You do not need to memorise lines — learn the plan behind one opening for White and one defence against each of 1.e4 and 1.d4.`,
-    drill: 'Pick one setup per colour and play it for 10 games. After each game, check on the review page where you left the book.',
+    drill: 'Pick one setup per colour and play it for 10 games. After each game, check the review page to see how your opening went.',
   },
   'endgame-error': {
     title: 'Learn the basic endgames',
@@ -132,7 +134,7 @@ const GENERAL_LESSONS = [
   {
     title: 'Review every game',
     body: 'Improvement comes from understanding your mistakes. Step through your biggest errors on the review page and ask what you missed, not just what the engine played.',
-    drill: 'After each game, jump to your biggest mistake and try to find the better move before pressing "Show the better move".',
+    drill: 'After each game, jump to your biggest mistake and try to find the better move before pressing "Better move".',
   },
   {
     title: 'Use all your pieces',
@@ -155,7 +157,10 @@ export function reviewReport({ review, game, fens }) {
   const outcome = game.outcome;
   const oppName = game.opponent?.name ?? 'your opponent';
   const result = outcome === 'win' ? `You beat ${oppName}` : outcome === 'loss' ? `You lost to ${oppName}` : outcome === 'draw' ? `You drew with ${oppName}` : `You played ${oppName}`;
-  lines.push(`${result} as ${sideName(me)}${game.reason ? ` (${game.reason})` : ''}.`);
+  const nMoves = Math.ceil(plies.length / 2);
+  if (game.reason === 'resignation' && outcome === 'loss') lines.push(`You resigned against ${oppName} as ${sideName(me)} after ${plural(nMoves, 'move')}.`);
+  else lines.push(`${result} as ${sideName(me)}${game.reason ? ` (${game.reason})` : ''}.`);
+  if (plies.length < 12) lines.push('This was a short game, so the lessons below are general tips rather than patterns.');
   if (mine.accuracy != null) {
     const rel = mine.accuracy > (theirs.accuracy ?? 0) + 3 ? 'higher than' : mine.accuracy < (theirs.accuracy ?? 0) - 3 ? 'lower than' : 'similar to';
     lines.push(`Your accuracy was ${mine.accuracy}%, ${rel} your opponent's ${theirs.accuracy}%.`);

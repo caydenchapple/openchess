@@ -19,6 +19,6 @@ export function mount(root) {
   root.append(h('div', { class: 'stack' },
     h('div', { class: 'row between' }, h('h1', { style: { margin: 0 } }, 'Your games'), h('div', { class: 'row' }, h('a', { class: 'btn', href: '#/review/import' }, 'Review a PGN'), h('a', { class: 'btn primary', href: '#/play' }, 'Play'))),
     h('div', { class: 'card', style: { overflowX: 'auto' } }, tbl),
-    h('p', { class: 'small muted' }, 'Games are stored only in this browser (the 150 most recent). Export a backup from Profile → Data.')));
+    h('p', { class: 'small muted' }, 'Games are stored only in this browser (the 150 most recent). Save a backup from My progress → Settings.')));
   return () => {};
 }

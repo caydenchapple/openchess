@@ -69,7 +69,7 @@ export const OPENING_NOTES = [
     'Open game: fight for the centre with pawns and develop knights and bishops with tempo.',
     ['Develop knights before bishops, castle early, and connect the rooks.', 'Challenge the centre with d4 (White) or ...d5 (Black) when it is safe.'],
     ['Avoid moving the same piece twice in the opening.', 'Do not bring the queen out early.'],
-    'e4, e5, d4, d5.', 'Review where you left the book and what developing move you skipped.')],
+    'e4, e5, d4, d5.', 'Compare your first few moves with the plan of the opening: which piece could you have developed sooner?')],
   [/Najdorf/, n(
     'Black plays ...a6 to prepare ...b5 and keep options for ...e5 or ...e6, aiming for sharp counterplay.',
     ['White: Be3, f3, Qd2, O-O-O and a kingside pawn storm (the English Attack), or Bg5/Be2 lines.', 'Black: ...e5 or ...e6 and ...b5, using the c-file and queenside pawn majority.'],
@@ -213,7 +213,7 @@ export const FALLBACK_NOTES = {
     'An open game: both sides develop quickly and the centre opens early.',
     ['Develop knights before bishops, castle early, and connect the rooks.', 'Challenge the centre when you are safe.'],
     ['Avoid moving the same piece twice.', 'Do not bring out the queen early.'],
-    'e4, e5, d4, d5.', 'Review where you left the book and what developing move you skipped.'),
+    'e4, e5, d4, d5.', 'Compare your first few moves with the plan of the opening: which piece could you have developed sooner?'),
   closed: n(
     'A closed game: slower manoeuvring around a pawn centre, where piece placement matters more than speed.',
     ['Develop sensibly, fight for e4/e5, and decide where to break.', 'Improve your worst piece.'],

@@ -61,6 +61,8 @@ function joinInvite(code) {
 
 $('#howto-btn').addEventListener('click', (e) => teaching.toggleHowTo(e.currentTarget));
 teaching.enterScreen();
+// pressing the menu item for the page you are already on refreshes it, so the press visibly does something
+document.querySelectorAll('.top a').forEach((a) => a.addEventListener('click', () => { if (a.getAttribute('href') === location.hash || (a.getAttribute('href') === '#/' && !location.hash)) setTimeout(route, 0); }));
 window.addEventListener('hashchange', route);
 route();
 

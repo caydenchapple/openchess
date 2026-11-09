@@ -6,7 +6,7 @@ import { reviewPgn, analyzePosition, parsePgn } from '../analysis.js';
 import {
   compactReview, hydrateReview, winPct, THEME_LABELS, THEME_ADVICE, pvToSan,
 } from '../analysis-core.js';
-import { reviewReport, explainPly, openingNotes, positionInsight } from '../coach.js';
+import { reviewReport, explainPly, openingNotes, positionInsight, standing } from '../coach.js';
 import { findGame, updateGame, addGame, addMistakes, get } from '../store.js';
 import { play } from '../sound.js';
 import { detectOpening } from '../openings.js';
@@ -101,11 +101,12 @@ export function mount(root, params) {
     dom.info = h('div', { class: 'banner' });
     const nav = h('div', { class: 'controls' },
       h('button', { 'aria-label': 'Start', onclick: () => stepTo(0) }, '⏮'),
-      h('button', { 'aria-label': 'Previous move', onclick: () => stepTo(idx - 1) }, '◀'),
+      h('button', { id: 'btn-back', 'aria-label': 'Previous move', onclick: () => stepTo(idx - 1) }, '◀'),
       h('button', { id: 'btn-forward', 'aria-label': 'Next move', onclick: () => stepTo(idx + 1) }, '▶'),
       h('button', { 'aria-label': 'End', onclick: () => stepTo(fens.length - 1) }, '⏭'),
       h('button', { onclick: () => board.flip() }, '⇅ Flip'),
-      h('button', { id: 'btn-next-mistake', onclick: nextKey }, 'Next mistake ›'));
+      h('button', { id: 'btn-next-mistake', onclick: nextKey }, 'Next mistake ›'),
+      (dom.better = h('button', { id: 'btn-better', disabled: true, onclick: () => { const pl = idx > 0 ? review.plies[idx - 1] : null; if (pl) go(pl.i + 1, !viewBefore); } }, '💡 Better move')));
 
     // --- right column ---
     dom.moves = h('div', { class: 'moves', id: 'review-moves' });
@@ -161,6 +162,8 @@ export function mount(root, params) {
       const pct = winPct(cp);
       dom.evalW.style.height = `${pct}%`;
       renderInfo(ply);
+      dom.better.disabled = !(ply && mistakeCls.includes(ply.cls));
+      dom.better.textContent = before && ply ? '↩ Back to the game' : '💡 Better move';
       teaching.reviewState({ onMistake: !!ply && ply.color === myColor && mistakeCls.includes(ply.cls), viewingBetter: before && !!ply });
       markMoves();
       renderGraph();
@@ -180,17 +183,16 @@ export function mount(root, params) {
       const moveNo = `${Math.floor(ply.i / 2) + 1}${ply.color === 'w' ? '.' : '...'}`;
       dom.info.append(
         h('div', { class: 'row between' },
-          h('b', { class: `cls-${ply.cls}` }, h('span', { class: `dot ${ply.cls}` }), `${moveNo} ${ply.san} — ${CLS_LABEL[ply.cls]}`),
-          h('span', { class: 'muted' }, fmtEval(review.series[ply.i + 1]))),
-        h('div', { class: 'small muted' }, mine ? 'Your move' : "Opponent's move", ` · accuracy ${ply.acc}%`));
+          h('b', { class: `cls-${ply.cls}` }, h('span', { class: `dot ${ply.cls}` }), `${mine ? 'Your move' : "Opponent's move"}: ${moveNo} ${ply.san} — ${CLS_LABEL[ply.cls]}`),
+          h('span', { class: 'muted', title: fmtEval(review.series[ply.i + 1]) }, `After this move: ${standing(myColor === 'w' ? review.series[ply.i + 1] : -review.series[ply.i + 1])} for you`)),
+        h('div', { class: 'small muted' }, `Accuracy of this move: ${ply.acc}%`));
       if (['inaccuracy', 'mistake', 'blunder'].includes(ply.cls)) {
         dom.info.append(h('p', { style: { margin: '.5rem 0 0' } }, 'Better was ', h('b', {}, ply.bestSan ?? '?'), '.',
-          ply.pvSan.length > 1 ? h('span', { class: 'muted small' }, ` Engine line: ${ply.pvSan.join(' ')}`) : null));
+          ply.pvSan.length > 1 ? h('span', { class: 'muted small' }, ` The computer's line: ${ply.pvSan.join(' ')}`) : null));
         const tags = ply.tags.filter((t) => THEME_LABELS[t]);
         if (tags.length) dom.info.append(h('div', { class: 'small', style: { marginTop: '.3rem' } }, tags.map((t) => h('span', { class: 'pill', style: { marginRight: '.3rem' } }, THEME_LABELS[t]))));
         if (mine) dom.info.append(h('p', { class: 'small', style: { marginTop: '.5rem' } }, '🎓 ', explainPly(ply, fens[ply.i], fens[ply.i + 1])));
-        dom.info.append(h('div', { class: 'controls' },
-          h('button', { id: 'btn-better', onclick: () => go(ply.i + 1, !viewBefore) }, viewBefore ? 'Back to the game' : 'Show the better move')));
+        dom.info.append(h('p', { class: 'small muted', style: { margin: '.4rem 0 0' } }, viewBefore ? 'Green arrow: the better move. Red arrow: the move that was played. Use ↩ Back to the game to return.' : 'Use the 💡 Better move button above the board to see it.'));
       }
     }
 
@@ -247,15 +249,15 @@ export function mount(root, params) {
       const res = game.outcome === 'win' ? 'You won' : game.outcome === 'loss' ? 'You lost' : game.outcome === 'draw' ? 'Draw' : game.result;
       return h('div', { class: 'card stack' },
         h('div', { class: 'row between' },
-          h('div', {}, h('h2', { style: { margin: 0 } }, `${game.playerName} vs ${game.opponent.name}`), h('div', { class: 'muted small' }, `${res} · ${game.reason ?? ''} · ${r.plies.length} plies`)),
+          h('div', {}, h('h2', { style: { margin: 0 } }, `${game.playerName} vs ${game.opponent.name}`), h('div', { class: 'muted small' }, `${res}${game.reason ? ` · ${game.reason}` : ''} · ${Math.ceil(r.plies.length / 2)} moves`)),
           r.opening.name && h('span', { class: 'pill' }, `${r.opening.eco} ${r.opening.name}`)),
         h('div', { class: 'acc' },
           box('Your accuracy', `${mine.accuracy ?? '–'}%`, `Opponent ${them.accuracy ?? '–'}%`),
-          box('Performance (est.)', mine.performance ?? '–', `Your rating ${game.priorRating}${game.opponent.rating ? ` · opp ${game.opponent.rating}` : ''}`),
-          box('Avg. centipawn loss', mine.acpl ?? '–', `Opponent ${them.acpl ?? '–'}`)),
+          box('Estimated level', mine.performance ?? '–', `Your rating ${game.priorRating}${game.opponent.rating ? ` · opponent ${game.opponent.rating}` : ''}`),
+          box('Best moves', `${mine.counts.best + mine.counts.book} of ${mine.moves}`, 'matched the computer or the opening book')),
         h('div', { class: 'counts' }, CLS_ORDER.map((k) => h('div', { class: `cls-${k}` }, h('span', { class: 'dot' }), `${CLS_LABEL[k]}: `, h('b', {}, String(mine.counts[k] ?? 0))))),
         h('div', {}, h('h3', {}, 'Accuracy by phase'), h('div', { class: 'bars' }, phases)),
-        h('p', { class: 'ai-note' }, 'Performance is a rough estimate from average centipawn loss (Stockfish lite, depth 12) and can be off by a few hundred points, especially in short games.'),
+        h('p', { class: 'ai-note' }, '"Estimated level" is a rough guess from how closely your moves matched the computer\'s choices. It can be off by hundreds of points, especially in short games.'),
         openingBlock(r));
     }
 
@@ -359,7 +361,7 @@ function mountImport(root) {
         };
         addGame(rec);
         location.hash = `#/review/${rec.id}`;
-      } catch (e) { toast(`Could not read that PGN: ${e.message}`); }
+      } catch { toast('That does not look like a chess game. Paste the moves, for example: 1. e4 e5 2. Nf3 Nc6 …', 6000); }
     } }, 'Analyse')));
   return () => {};
 }

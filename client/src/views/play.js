@@ -1,5 +1,5 @@
 // Play setup: computer opponents, online quick-pairing and private invite links.
-import { h, clear, toast } from '../util.js';
+import { h, clear, toast, twoStep } from '../util.js';
 import { LEVELS } from '../engine.js';
 import { get, setName } from '../store.js';
 import { net } from '../net.js';
@@ -46,7 +46,7 @@ export function mount(root) {
       chips([{ key: 'w', t: '♔ White' }, { key: 'random', t: '🎲 Random' }, { key: 'b', t: '♚ Black' }], () => prefs.color, (i) => { prefs.color = i.key; }, (i) => i.t),
       h('label', {}, 'Clock'),
       chips(COMPUTER_TCS.map(([t, i]) => ({ key: `${t}+${i}`, t, i })), () => `${prefs.tc[0]}+${prefs.tc[1]}`, (i) => { prefs.tc = [i.t, i.i]; }, (i) => TC_LABEL(i.t, i.i)),
-      h('button', { class: 'primary big', onclick: startComputer }, `Play ${lv.name} (~${lv.elo})`));
+      h('button', { class: 'primary big', onclick: resume ? twoStep('Click again to replace your unfinished game', startComputer) : startComputer }, `Play ${lv.name} (~${lv.elo})`));
   }
 
   function startComputer() {
@@ -64,16 +64,15 @@ export function mount(root) {
     const r = get().ratings.online;
     return h('section', { class: 'card setup' },
       h('h2', {}, 'Play people online'),
-      h('p', { class: 'muted small' }, `Free, no sign-up. Your online rating: ${r.r}${isProvisional(r) ? '?' : ''}. ${net.stats.online ? `${net.stats.online} connected.` : ''}`),
+      h('p', { class: 'muted small' }, `Free, no sign-up. Your online rating: ${r.r}${isProvisional(r) ? ' (still settling)' : ''}. ${net.stats.online ? `${net.stats.online} connected.` : ''}`),
       h('label', {}, 'Quick pairing'),
       h('div', { class: 'opts' }, ONLINE_TCS.map(([t, i]) => h('button', {
         type: 'button', onclick: () => { net.send({ t: 'seek', time: t, inc: i }); },
       }, h('span', {}, TC_LABEL(t, i)), h('small', { class: 'muted' }, ` ${TC_NAME(t)}`)))),
       h('label', {}, 'Or play a friend'),
       h('div', { class: 'row' },
-        h('button', { onclick: () => net.send({ t: 'create', time: prefs.tc[0] || 5, inc: prefs.tc[0] ? prefs.tc[1] : 0, color: 'random' }) },
-          `Create invite link (${prefs.tc[0] ? TC_LABEL(...prefs.tc) : '5+0'})`),
-        h('span', { class: 'muted small' }, 'uses the clock selected under "Play the computer", or 5+0')));
+        h('button', { onclick: () => net.send({ t: 'create', time: 5, inc: 0, color: 'random' }) },
+          'Create a link for a friend (5 minutes each)')));
   }
 
   function waitingCard() {
