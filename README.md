@@ -6,6 +6,7 @@ Free, open-source chess. **No sign-up, no ads, no paywall, no AI services or API
 - 🌐 **Play people online** — quick pairing by time control, or a private invite link for a friend
 - 📊 **Post-game review** — every move rated (best → blunder), accuracy by phase, evaluation graph, opening detection, estimated performance rating
 - 🎓 **Built-in coach** (plain code, no AI model) — game summary, strengths, three personal lessons with drills, an explanation of each key mistake, opening notes, "position insight", and a training plan
+- 📚 **Step-by-step lessons** — 10 lessons in 5 units (checkmate, free pieces, opening principles, forks, skewers, pins, mate in two, pawn endings, a thinking routine), daily practice with spaced repetition, stars, and a daily 🔥 streak with weekly freezes. Recommendations follow the mistakes found in your own reviewed games.
 - 🧭 **Light-touch teaching** — a controls card, one-time tips, a 3-step coach walk-through of your first review, and a "?" how-to-play panel (plan in [docs/GAME_BRIEF.md](docs/GAME_BRIEF.md))
 - 🧩 **Train on your own mistakes** — every blunder becomes a puzzle
 - 🔒 **Private** — games, ratings and settings live in your browser's `localStorage`
@@ -63,7 +64,21 @@ just a random id + display name from the browser. There is no chat (nothing to m
 - Stockfish is served from `/vendor/stockfish/` (≈3.5 MB, cached for a week).
 - Everything else (engine, review, coach) runs in the player's browser, so hosting costs almost nothing.
 
-## Deploying as a static site (Zephyr Cloud)
+## Lessons
+
+`client/src/lessons-data.js` holds the curriculum, `lessons-logic.js` the learning engine (stars, Leitner-box spaced repetition at
+1/3/7/14/30 days, daily plan, streaks, recommendations) and `views/learn.js` the screens. Every exercise with one best answer was
+generated and then checked with Stockfish 19: `npm run generate:lessons` rebuilds the sets, `npm run verify:lessons` re-checks all of them.
+The teaching text is ours and summarises widely used training ideas (pattern recognition, spaced repetition, a candidate-move routine,
+early endgame study, learning from your own games). It is not a promise of results.
+
+## Deploying as a static site (Cloudflare Pages or Zephyr Cloud)
+
+```bash
+npm run build:static
+npx wrangler pages deploy dist --project-name <your-project>   # Cloudflare Pages
+```
+
 
 Everything except online play runs in the browser, so `dist/` can be hosted anywhere static:
 
@@ -72,7 +87,7 @@ npm run build:static                 # builds the client and copies public/ to d
 npx zephyr-cli deploy ./dist         # uploads it to Zephyr Cloud (org/project are set in zephyr.config.mjs)
 ```
 
-On a static host there is no game server, so the "Play people online" card says it is unavailable and play against
+Or `npx zephyr-cli deploy ./dist` for Zephyr Cloud. On a static host there is no game server, so the "Play people online" card says it is unavailable and play against
 the computer, reviews, coaching and training all work. For online play, run `npm start` on a Node host with WebSocket support.
 
 ## Project layout

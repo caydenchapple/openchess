@@ -1,5 +1,6 @@
 // All player data lives in this browser's localStorage. No accounts, no server-side profiles.
 import { uid } from './util.js';
+import { emptyLearn } from './lessons-logic.js';
 
 const KEY = 'openchess.v1';
 const MAX_GAMES = 150;
@@ -13,6 +14,7 @@ const defaults = () => ({
   settings: { sound: true, theme: 'dark', autoReview: false },
   games: [], // newest first
   mistakes: [], // puzzles from your own blunders
+  learn: emptyLearn(), // lesson progress, spaced-repetition boxes and the daily streak
   teach: { progress: null, tips: {} }, // tutorial kit state: which steps and tips were already shown
 });
 

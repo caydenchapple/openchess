@@ -9,7 +9,10 @@
     "test": "node --test test/*.test.js",
     "prestart": "node scripts/build.js",
     "check:tutorial": "node scripts/tutorial-seed.mjs .tutorial-seed.js && tsx scripts/tutorial-check.mts http://localhost:3000/#/review/seedgame01 --init .tutorial-seed.js --out .tutorial-check",
-    "build:static": "node scripts/build.js && rm -rf dist && cp -R public dist"
+    "build:static": "node scripts/build.js && rm -rf dist && cp -R public dist",
+    "verify:lessons": "node scripts/lessons/verify.mjs",
+    "generate:lessons": "node scripts/lessons/generate.mjs",
+    "deploy:cloudflare": "npm run build:static && wrangler pages deploy dist --project-name openchess --branch main"
   },
   "keywords": [
     "chess",

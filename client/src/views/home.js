@@ -3,6 +3,7 @@ import { Board } from '../board.js';
 import { get } from '../store.js';
 import { net } from '../net.js';
 import { session, loadActive } from '../session.js';
+import { currentStreak, dayKey } from '../lessons-logic.js';
 
 /** One click: a friendly computer opponent, you play White, no clock. */
 function quickGame() {
@@ -31,6 +32,9 @@ export function mount(root) {
             h('button', { class: 'btn primary huge', onclick: () => { session.cfg = { resume: true }; location.hash = '#/game'; } }, '▶ Continue your game'),
             h('button', { class: 'btn big', onclick: twoStep('Click again to replace your unfinished game', quickGame) }, 'Start a new game'))
           : h('button', { class: 'btn primary huge', onclick: quickGame }, '▶ Play now'),
+        h('div', { class: 'learn-cta' },
+          h('a', { class: 'btn big', href: '#/learn' }, '📚 Learn step by step'),
+          (() => { const s = currentStreak(st.learn.streak, dayKey()); return s.count ? h('span', { class: 'streak-pill' }, `🔥 ${s.count}-day streak`) : null; })()),
         h('p', { class: 'small-links' },
           h('a', { href: '#/play' }, 'Pick a different opponent'),
           lastReviewable && h('span', {}, ' · '),

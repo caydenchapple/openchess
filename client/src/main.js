@@ -8,6 +8,8 @@ import * as review from './views/review.js';
 import * as history from './views/history.js';
 import * as profile from './views/profile.js';
 import * as train from './views/train.js';
+import * as learnView from './views/learn.js';
+import { currentStreak, dayKey } from './lessons-logic.js';
 import { session } from './session.js';
 import { teaching } from './teaching.js';
 
@@ -20,7 +22,8 @@ const routes = {
   join: { mod: null, nav: 'play' },
   review: { mod: review, nav: 'history' },
   history: { mod: history, nav: 'history' },
-  train: { mod: train, nav: 'train' },
+  learn: { mod: learnView, nav: 'learn' },
+  train: { mod: train, nav: 'learn' },
   profile: { mod: profile, nav: 'profile' },
   about: { mod: { mount: home.mountAbout }, nav: '' },
 };
@@ -72,3 +75,16 @@ function updateOnline() {
   const el = $('#online-count');
   if (el) el.textContent = net.stats.online ? `${net.stats.online} online` : '';
 }
+
+// the 🔥 streak chip in the header
+function updateStreak() {
+  const el = $('#streak-chip'); if (!el) return;
+  const s = currentStreak(get().learn.streak, dayKey());
+  el.hidden = !s.count;
+  el.textContent = `🔥 ${s.count}`;
+  el.classList.toggle('risk', s.atRisk);
+  el.title = s.today ? `${s.count}-day streak — you practised today` : `${s.count}-day streak — practise today to keep it`;
+}
+updateStreak();
+window.addEventListener('hashchange', updateStreak);
+import('./store.js').then(({ subscribe }) => subscribe(updateStreak));
