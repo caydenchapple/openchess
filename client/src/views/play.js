@@ -56,6 +56,10 @@ export function mount(root) {
   }
 
   function onlineCard() {
+    if (net.unavailable) {
+      return h('section', { class: 'card setup' }, h('h2', {}, 'Play people online'),
+        h('p', { class: 'muted' }, 'Online games are not available on this site right now. You can still play the computer and review your games.'));
+    }
     if (waiting) return waitingCard();
     const r = get().ratings.online;
     return h('section', { class: 'card setup' },
@@ -102,6 +106,7 @@ export function mount(root) {
     net.on('error', (m) => { toast(m.message); waiting = null; render(); }),
     net.on('stats', () => { if (!waiting) render(); }),
     net.on('hello', () => { if (!waiting) render(); }),
+    net.on('unavailable', () => render()),
   );
   net.connect();
   render();

@@ -8,3 +8,7 @@ public/vendor/
 .claude/
 .tutorial-seed.js
 .tutorial-check/
+playtest-report/
+polish/
+.playtest/
+dist/

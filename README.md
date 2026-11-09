@@ -63,6 +63,18 @@ just a random id + display name from the browser. There is no chat (nothing to m
 - Stockfish is served from `/vendor/stockfish/` (≈3.5 MB, cached for a week).
 - Everything else (engine, review, coach) runs in the player's browser, so hosting costs almost nothing.
 
+## Deploying as a static site (Zephyr Cloud)
+
+Everything except online play runs in the browser, so `dist/` can be hosted anywhere static:
+
+```bash
+npm run build:static                 # builds the client and copies public/ to dist/
+npx zephyr-cli deploy ./dist         # uploads it to Zephyr Cloud (org/project are set in zephyr.config.mjs)
+```
+
+On a static host there is no game server, so the "Play people online" card says it is unavailable and play against
+the computer, reviews, coaching and training all work. For online play, run `npm start` on a Node host with WebSocket support.
+
 ## Project layout
 
 ```

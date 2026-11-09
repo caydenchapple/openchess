@@ -8,7 +8,8 @@
     "dev": "node scripts/build.js --watch & node --env-file-if-exists=.env --watch server/index.js",
     "test": "node --test test/*.test.js",
     "prestart": "node scripts/build.js",
-    "check:tutorial": "node scripts/tutorial-seed.mjs .tutorial-seed.js && tsx scripts/tutorial-check.mts http://localhost:3000/#/review/seedgame01 --init .tutorial-seed.js --out .tutorial-check"
+    "check:tutorial": "node scripts/tutorial-seed.mjs .tutorial-seed.js && tsx scripts/tutorial-check.mts http://localhost:3000/#/review/seedgame01 --init .tutorial-seed.js --out .tutorial-check",
+    "build:static": "node scripts/build.js && rm -rf dist && cp -R public dist"
   },
   "keywords": [
     "chess",

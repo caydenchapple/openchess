@@ -10,6 +10,8 @@ export class Net {
     this.wantOpen = false;
     this.retry = 0;
     this.stats = { online: 0, playing: 0 };
+    this.failed = 0; // connection attempts in a row that never opened (a static host has no game server)
+    this.unavailable = false;
   }
 
   on(type, fn) {
@@ -21,12 +23,13 @@ export class Net {
 
   connect() {
     this.wantOpen = true;
+    if (this.unavailable) return;
     if (this.ws && (this.ws.readyState === 0 || this.ws.readyState === 1)) return;
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${proto}://${location.host}/ws`);
     this.ws = ws;
     ws.onopen = () => {
-      this.open = true; this.retry = 0;
+      this.open = true; this.retry = 0; this.failed = 0; this.unavailable = false;
       const { player, ratings } = get();
       ws.send(JSON.stringify({ t: 'hello', id: player.id, name: player.name, rating: ratings.online.r }));
       this.queue.splice(0).forEach((m) => ws.send(JSON.stringify(m)));
@@ -38,8 +41,14 @@ export class Net {
       this.#emit(m.t, m);
     };
     ws.onclose = () => {
+      const wasOpen = this.open;
       this.open = false;
       this.#emit('close', {});
+      if (!wasOpen && ++this.failed >= 3) { // never connected: stop knocking, tell the screens once
+        this.unavailable = true; this.wantOpen = false;
+        this.#emit('unavailable', {});
+        return;
+      }
       if (this.wantOpen) setTimeout(() => this.connect(), Math.min(10_000, 500 * 2 ** this.retry++));
     };
     ws.onerror = () => ws.close();
