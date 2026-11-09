@@ -6,6 +6,7 @@ Free, open-source chess. **No sign-up, no ads, no paywall, no AI services or API
 - 🌐 **Play people online** — quick pairing by time control, or a private invite link for a friend
 - 📊 **Post-game review** — every move rated (best → blunder), accuracy by phase, evaluation graph, opening detection, estimated performance rating
 - 🎓 **Built-in coach** (plain code, no AI model) — game summary, strengths, three personal lessons with drills, an explanation of each key mistake, opening notes, "position insight", and a training plan
+- 🧭 **Light-touch teaching** — a controls card, one-time tips, a 3-step coach walk-through of your first review, and a "?" how-to-play panel (plan in [docs/GAME_BRIEF.md](docs/GAME_BRIEF.md))
 - 🧩 **Train on your own mistakes** — every blunder becomes a puzzle
 - 🔒 **Private** — games, ratings and settings live in your browser's `localStorage`
 
@@ -18,7 +19,7 @@ npm install
 npm start        # builds the client and serves http://localhost:3000
 ```
 
-Other commands: `npm run dev` (watch mode), `npm test`, `docker build -t openchess .`
+Other commands: `npm run dev` (watch mode), `npm test`, `docker build -t openchess .`, and — with the server running — `npm run check:tutorial` (walks the first-review coach on desktop and two phone shapes with Playwright; needs `npx playwright install chromium` once).
 
 ## How it works
 
@@ -67,6 +68,7 @@ just a random id + display name from the browser. There is no chat (nothing to m
 ```
 server/      index.js (HTTP + WebSocket) · rooms.js (games, lobby, clocks)
 client/src/  main.js router · views/* · engine.js · analysis*.js · coach.js · opening-notes.js
+             teaching.js + review-steps.js + tutorial/ (tutorial kit: coach overlay, tips, how-to panel)
              board.js · store.js · rating.js · openings.js · stats.js
 scripts/build.js   bundles the client with esbuild, copies Stockfish + chessground CSS into public/
 test/        node:test suites (rooms, websocket, review maths, coach)

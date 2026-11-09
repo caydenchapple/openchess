@@ -181,3 +181,22 @@ tr.click { cursor: pointer; } tr.click:hover td { background: var(--bg3); }
   .online { display: none; }
   .clock { font-size: 1.25rem; min-width: 4.4rem; }
 }
+
+/* ---- teaching layer (tutorial kit) ---- */
+.help { width: 2.2rem; height: 2.2rem; padding: 0; border-radius: 50%; font-weight: 700; color: var(--muted); }
+.tcoach, .thow-backdrop, .tcontrols {
+  --coach-accent: var(--accent); --coach-edge: #10200a; --coach-bg: var(--bg2); --coach-fg: var(--text); --coach-dim: rgba(0, 0, 0, .55);
+  --coach-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+.thow:not(.ui-panel) { background: var(--bg2); color: var(--text); border: 2px solid var(--line); border-radius: 14px; }
+.thow-replay { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.thow kbd { background: var(--bg3); }
+.tip { position: fixed; left: 1rem; bottom: 1rem; max-width: min(24rem, calc(100vw - 2rem)); z-index: 60; padding: .65rem .9rem; border-radius: 10px;
+  background: var(--bg3); color: var(--text); border: 1px solid var(--accent); box-shadow: 0 6px 20px rgba(0, 0, 0, .4); font-size: 1rem; line-height: 1.35; }
+.tip[hidden], .tcontrols[hidden] { display: none; }
+/* the controls card lives inside the side panel (never over the board) */
+.side .tcontrols { position: static; transform: none; max-width: none; justify-content: flex-start; background: var(--bg2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; pointer-events: auto; }
+@media (min-width: 900px) { .tip { left: auto; right: 1rem; } }
+
+/* thumb-sized controls on touch screens */
+@media (pointer: coarse) { button, .btn { min-height: 44px; } .help { min-width: 44px; height: 44px; } }

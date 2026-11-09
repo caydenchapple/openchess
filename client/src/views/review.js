@@ -10,6 +10,7 @@ import { reviewReport, explainPly, openingNotes, positionInsight } from '../coac
 import { findGame, updateGame, addGame, addMistakes, get } from '../store.js';
 import { play } from '../sound.js';
 import { detectOpening } from '../openings.js';
+import { teaching } from '../teaching.js';
 
 const CLS_LABEL = {
   book: 'Book', best: 'Best', excellent: 'Excellent', good: 'Good',
@@ -17,6 +18,7 @@ const CLS_LABEL = {
 };
 const CLS_ORDER = ['best', 'excellent', 'good', 'book', 'inaccuracy', 'mistake', 'blunder'];
 const SVG = 'http://www.w3.org/2000/svg';
+const mistakeCls = ['inaccuracy', 'mistake', 'blunder'];
 
 function fmtEval(cp, mate) {
   if (Math.abs(cp) >= 9000) return cp > 0 ? 'M' : '-M';
@@ -98,15 +100,15 @@ export function mount(root, params) {
     dom.graph = h('div', {});
     dom.info = h('div', { class: 'banner' });
     const nav = h('div', { class: 'controls' },
-      h('button', { 'aria-label': 'Start', onclick: () => go(0) }, '⏮'),
-      h('button', { 'aria-label': 'Previous move', onclick: () => go(idx - 1) }, '◀'),
-      h('button', { 'aria-label': 'Next move', onclick: () => go(idx + 1) }, '▶'),
-      h('button', { 'aria-label': 'End', onclick: () => go(fens.length - 1) }, '⏭'),
+      h('button', { 'aria-label': 'Start', onclick: () => stepTo(0) }, '⏮'),
+      h('button', { 'aria-label': 'Previous move', onclick: () => stepTo(idx - 1) }, '◀'),
+      h('button', { id: 'btn-forward', 'aria-label': 'Next move', onclick: () => stepTo(idx + 1) }, '▶'),
+      h('button', { 'aria-label': 'End', onclick: () => stepTo(fens.length - 1) }, '⏭'),
       h('button', { onclick: () => board.flip() }, '⇅ Flip'),
-      h('button', { onclick: nextKey }, 'Next mistake ›'));
+      h('button', { id: 'btn-next-mistake', onclick: nextKey }, 'Next mistake ›'));
 
     // --- right column ---
-    dom.moves = h('div', { class: 'moves' });
+    dom.moves = h('div', { class: 'moves', id: 'review-moves' });
     dom.coach = h('div', { class: 'stack' });
     dom.insight = h('div', { class: 'stack' });
 
@@ -116,19 +118,28 @@ export function mount(root, params) {
         h('div', { class: 'row' }, h('a', { class: 'btn', href: '#/history' }, 'All games'), h('a', { class: 'btn', href: '#/play' }, 'New game'))),
       h('div', { class: 'review' },
         h('div', { class: 'stack' },
+          nav,
           h('div', { class: 'evalbar-wrap' }, bar, dom.boardEl),
-          nav, dom.info, dom.graph),
-        h('div', { class: 'stack' }, summaryCard(review), h('div', { class: 'card' }, h('h2', {}, 'Moves'), dom.moves), dom.coach, insightCard(), themesCard(review))));
+          dom.graph),
+        h('div', { class: 'stack' }, dom.info, summaryCard(review), h('div', { class: 'card' }, h('h2', {}, 'Moves'), dom.moves), dom.coach, insightCard(), themesCard(review))));
 
     renderGraph(); renderMoves(); go(fens.length - 1);
     showReport(review);
+    teaching.enterReview({
+      hasMistakes: review.plies.some((p) => p.color === myColor && mistakeCls.includes(p.cls)),
+      reviewedBefore: get().games.filter((g) => g.review).length > 1,
+    });
+    cleanups.push(() => teaching.leaveReview());
     const key = (e) => {
       if (e.target.matches('input, textarea')) return;
-      if (e.key === 'ArrowLeft') go(idx - 1); else if (e.key === 'ArrowRight') go(idx + 1);
-      else if (e.key === 'ArrowUp') go(0); else if (e.key === 'ArrowDown') go(fens.length - 1);
+      if (e.key === 'ArrowLeft') stepTo(idx - 1); else if (e.key === 'ArrowRight') stepTo(idx + 1);
+      else if (e.key === 'ArrowUp') stepTo(0); else if (e.key === 'ArrowDown') stepTo(fens.length - 1);
     };
     window.addEventListener('keydown', key);
     cleanups.push(() => window.removeEventListener('keydown', key));
+
+    /** The player moved through the game themselves (buttons, arrow keys or the move list). */
+    function stepTo(n) { teaching.reviewState({ stepped: true }); go(n); }
 
     function go(n, before = false) {
       idx = Math.max(0, Math.min(fens.length - 1, n));
@@ -150,6 +161,7 @@ export function mount(root, params) {
       const pct = winPct(cp);
       dom.evalW.style.height = `${pct}%`;
       renderInfo(ply);
+      teaching.reviewState({ onMistake: !!ply && ply.color === myColor && mistakeCls.includes(ply.cls), viewingBetter: before && !!ply });
       markMoves();
       renderGraph();
     }
@@ -178,7 +190,7 @@ export function mount(root, params) {
         if (tags.length) dom.info.append(h('div', { class: 'small', style: { marginTop: '.3rem' } }, tags.map((t) => h('span', { class: 'pill', style: { marginRight: '.3rem' } }, THEME_LABELS[t]))));
         if (mine) dom.info.append(h('p', { class: 'small', style: { marginTop: '.5rem' } }, '🎓 ', explainPly(ply, fens[ply.i], fens[ply.i + 1])));
         dom.info.append(h('div', { class: 'controls' },
-          h('button', { onclick: () => go(ply.i + 1, !viewBefore) }, viewBefore ? 'Back to the game' : 'Show the better move')));
+          h('button', { id: 'btn-better', onclick: () => go(ply.i + 1, !viewBefore) }, viewBefore ? 'Back to the game' : 'Show the better move')));
       }
     }
 
@@ -188,7 +200,7 @@ export function mount(root, params) {
         if (i % 2 === 0) dom.moves.append(h('span', { class: 'n' }, `${i / 2 + 1}.`));
         dom.moves.append(h('span', {
           class: `m click ${p.cls} ${['inaccuracy', 'mistake', 'blunder'].includes(p.cls) ? '' : ''}`,
-          dataset: { i: String(i + 1) }, onclick: () => go(i + 1), title: CLS_LABEL[p.cls],
+          dataset: { i: String(i + 1) }, onclick: () => stepTo(i + 1), title: CLS_LABEL[p.cls],
         }, h('span', { class: `dot ${p.cls}`, style: { width: '.5rem', height: '.5rem', marginRight: '.3rem' } }), p.san));
       });
       if (review.plies.length % 2 === 1) dom.moves.append(h('span', {}));

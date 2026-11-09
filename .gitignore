@@ -1,7 +1,10 @@
 node_modules/
 public/app.js
 public/app.js.map
+public/app.css
 public/vendor/
 .env
 .DS_Store
 .claude/
+.tutorial-seed.js
+.tutorial-check/

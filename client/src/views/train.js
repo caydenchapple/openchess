@@ -6,6 +6,7 @@ import { get, updateMistake } from '../store.js';
 import { play } from '../sound.js';
 import { THEME_LABELS, THEME_ADVICE } from '../analysis-core.js';
 import { aggregate } from '../stats.js';
+import { teaching } from '../teaching.js';
 
 export function mount(root) {
   const st = get();
@@ -51,6 +52,7 @@ export function mount(root) {
     try { played = chess.move(mv); } catch { board.setPosition(m.fen); return; }
     if (uci === m.best) {
       play('right');
+      teaching.tips.succeed('train-stuck');
       board.setPosition(chess.fen(), { lastMove: [mv.from, mv.to] });
       board.setInteractive(null);
       updateMistake(m.fen, { solved: (m.solved || 0) + 1, attempts: (m.attempts || 0) + 1 });
@@ -62,7 +64,7 @@ export function mount(root) {
       m.attempts = (m.attempts || 0) + 1; updateMistake(m.fen, { attempts: m.attempts });
       setTimeout(() => { board.setPosition(m.fen); board.setInteractive(new Chess(m.fen).turn()); }, 350);
       toast(played.san === m.played ? `That's the move you played in the game (${m.played}).` : `${played.san} isn't the best. Try again.`);
-      if (tries >= 2) toast('Stuck? Use "Show solution".');
+      teaching.tips.fail('train-stuck', { after: 3, text: 'Stuck? Tap "Show solution", then try the next puzzle.' });
     }
   }
 

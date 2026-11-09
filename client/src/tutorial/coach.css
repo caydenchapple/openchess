@@ -1,0 +1,139 @@
+/* The coach: a speech bubble, a ring on what it talks about, a spot to drop on, and a hand that shows the gesture.
+   The layer never takes a click except on the bubble's Skip button, so the player can always just do the thing.
+   Colors, font and panel come from the game's UI theme tokens (ui-theme-kit) when present; set --coach-* to override.
+   Text is at least 16px and the Skip button at least 44px: the kit's own checks fail the build below those. */
+.tcoach {
+  --coach-accent: var(--ui-accent, #ffcf3f);
+  --coach-edge: var(--ui-ink, #1a1030);
+  --coach-bg: #fffaf0;
+  --coach-fg: #1a1030;
+  --coach-dim: rgba(14, 8, 28, 0.55);
+  --coach-font: var(--ui-font-body, system-ui, -apple-system, "Segoe UI", sans-serif);
+  position: fixed; inset: 0; z-index: var(--coach-z, 80); pointer-events: none;
+  font-family: var(--coach-font);
+}
+.tcoach[hidden], .tcoach [hidden] { display: none !important; }
+
+/* Ring on the target. The pulse is a second ring that grows and fades (transform and opacity only). */
+.tcoach-ring {
+  position: fixed; left: 0; top: 0; box-sizing: border-box; border-radius: 18px;
+  border: 4px solid var(--coach-accent); box-shadow: 0 0 0 3px var(--coach-edge);
+}
+.tcoach-ring::after {
+  content: ""; position: absolute; inset: -4px; border-radius: inherit; border: 3px solid var(--coach-accent);
+  animation: tcoach-pulse 1.3s ease-out 3;
+}
+.tcoach[data-dim] .tcoach-ring { box-shadow: 0 0 0 3px var(--coach-edge), 0 0 0 100vmax var(--coach-dim); }   /* a spotlight that still lets every tap through */
+
+/* An arrow at the screen edge for a target that is off screen (behind the camera, scrolled away). */
+.tcoach-arrow { position: fixed; left: 0; top: 0; width: 0; height: 0; }
+.tcoach-arrow i {
+  position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; background: var(--coach-accent);
+  clip-path: polygon(0 18%, 52% 18%, 52% 0, 100% 50%, 52% 100%, 52% 82%, 0 82%); filter: drop-shadow(0 0 0 var(--coach-edge));
+  animation: tcoach-nudge 1s ease-in-out 4;
+}
+.tcoach[data-reduced] .tcoach-arrow i { animation: none; }
+@keyframes tcoach-nudge { 50% { translate: 6px 0; } }
+
+/* The place to drop on. */
+.tcoach-spot { position: fixed; left: 0; top: 0; width: 0; height: 0; }
+.tcoach-spot i {
+  position: absolute; left: -30px; top: -30px; width: 60px; height: 60px; border-radius: 50%; box-sizing: border-box;
+  border: 3px dashed var(--coach-accent); background: color-mix(in srgb, var(--coach-accent) 28%, transparent);
+  animation: tcoach-spot 1.3s ease-in-out 3;
+}
+
+/* The hand: a 44px touch dot that taps, presses, drags or swipes along --fx/--fy to --tx/--ty.
+   Every motion here runs in bursts under 5 s (WCAG 2.2.2); coach.js starts them again on each new step and each hint level. */
+.tcoach-hand { position: fixed; left: 0; top: 0; width: 44px; height: 44px; opacity: 0; }
+.tcoach-hand i {
+  display: block; width: 100%; height: 100%; box-sizing: border-box; border-radius: 50%;
+  background: color-mix(in srgb, #fff 82%, var(--coach-accent)); border: 3px solid var(--coach-edge);
+  box-shadow: 0 3px 0 var(--coach-edge), 0 8px 16px rgba(0, 0, 0, .35);
+}
+.tcoach-hand svg, .tcoach-hand img { width: 100%; height: 100%; display: block; }
+.tcoach[data-gesture="tap"] .tcoach-hand { animation: tcoach-tap 1.3s ease-in-out 3; }
+.tcoach[data-gesture="hold"] .tcoach-hand { animation: tcoach-hold 1.8s ease-in-out 2; }
+.tcoach[data-gesture="drag"] .tcoach-hand, .tcoach[data-gesture="swipe"] .tcoach-hand { animation: tcoach-drag 2.4s cubic-bezier(.45, 0, .25, 1) 2; }
+
+/* Reduced motion: no looping movement. The hand sits on the target, and a dashed line shows where the drag goes. */
+.tcoach-path { position: fixed; left: 0; top: 0; height: 0; border-top: 4px dashed var(--coach-accent); transform-origin: 0 0; filter: drop-shadow(0 0 0 var(--coach-edge)); }
+.tcoach[data-reduced] .tcoach-ring::after, .tcoach[data-reduced] .tcoach-spot i { animation: none; }
+.tcoach[data-reduced] .tcoach-hand { animation: none; opacity: 1; transform: translate(calc(var(--fx) - 22px), calc(var(--fy) - 22px)); }
+
+/* The bubble. One short line of at least 16px; the Skip button is at least 44px high. */
+.tcoach-bubble { position: fixed; left: 0; top: 0; box-sizing: border-box; width: min(320px, calc(100vw - 16px)); padding: 12px 14px 4px; }
+.tcoach-bubble:not(.ui-panel) {
+  color: var(--coach-fg); background: var(--coach-bg); border: 3px solid var(--coach-edge); border-radius: 18px;
+  box-shadow: 0 5px 0 var(--coach-edge), 0 14px 26px rgba(0, 0, 0, .35);
+}
+.tcoach-bubble.ui-panel { color: var(--ui-text, var(--coach-fg)); }   /* the game's own panel material (ui-theme-kit) draws the rest */
+.tcoach-bubble.pop { animation: tcoach-pop .24s cubic-bezier(.23, 1, .32, 1); }
+.tcoach-text { margin: 0; font: 700 max(16px, 1rem)/1.3 var(--coach-font); }
+.tcoach-text kbd { font: inherit; padding: 1px 7px; border-radius: 6px; border: 2px solid currentColor; border-bottom-width: 4px; background: rgba(255, 255, 255, .5); }
+.tcoach-count {
+  float: right; margin: 0 0 4px 10px; padding: 3px 9px; border-radius: 999px; background: var(--coach-accent); color: var(--coach-edge);
+  border: 2px solid var(--coach-edge); font: 800 max(16px, 1rem)/1 var(--coach-font);
+}
+.tcoach-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 2px; }
+.tcoach-next {
+  min-width: 44px; min-height: 44px; padding: 0 16px; border: 3px solid var(--coach-edge); border-radius: 14px; background: var(--coach-accent); color: var(--coach-edge);
+  font: 800 max(16px, 1rem)/1 var(--coach-font); cursor: pointer; pointer-events: auto;
+}
+.tcoach-skip {
+  display: block; min-width: 44px; min-height: 44px; margin: 0 0 0 -6px; padding: 0 6px; border: 0; background: none; cursor: pointer;
+  color: inherit; opacity: .78; font: 700 max(16px, 1rem)/1 var(--coach-font); text-decoration: underline; text-underline-offset: 3px; pointer-events: auto;
+}
+.tcoach-skip:focus-visible { outline: 3px solid var(--coach-edge); outline-offset: 2px; opacity: 1; }
+.tcoach[data-hint="3"] .tcoach-skip { opacity: 1; font-weight: 800; }
+
+@keyframes tcoach-pulse { from { transform: scale(1); opacity: .9; } to { transform: scale(1.14); opacity: 0; } }
+@keyframes tcoach-spot { 0%, 100% { transform: scale(.88); opacity: .8; } 50% { transform: scale(1.06); opacity: 1; } }
+@keyframes tcoach-pop { from { scale: .92; opacity: 0; } to { scale: 1; opacity: 1; } }
+@keyframes tcoach-tap {
+  0%, 100% { opacity: 1; transform: translate(calc(var(--fx) - 22px), calc(var(--fy) - 22px)) scale(1); }
+  40% { opacity: 1; transform: translate(calc(var(--fx) - 22px), calc(var(--fy) - 22px)) scale(.8); }
+}
+@keyframes tcoach-hold {
+  0% { opacity: 0; transform: translate(calc(var(--fx) - 22px), calc(var(--fy) - 22px)) scale(1.1); }
+  15%, 75% { opacity: 1; transform: translate(calc(var(--fx) - 22px), calc(var(--fy) - 22px)) scale(.8); }
+  100% { opacity: 0; transform: translate(calc(var(--fx) - 22px), calc(var(--fy) - 22px)) scale(1.1); }
+}
+@keyframes tcoach-drag {
+  0% { opacity: 0; transform: translate(calc(var(--fx) - 22px), calc(var(--fy) - 22px)) scale(1); }
+  10% { opacity: 1; transform: translate(calc(var(--fx) - 22px), calc(var(--fy) - 22px)) scale(.85); }
+  70% { opacity: 1; transform: translate(calc(var(--tx) - 22px), calc(var(--ty) - 22px)) scale(.85); }
+  85%, 100% { opacity: 0; transform: translate(calc(var(--tx) - 22px), calc(var(--ty) - 22px)) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tcoach-ring::after, .tcoach-spot i, .tcoach-bubble.pop { animation: none; }
+  .tcoach-hand { animation: none !important; opacity: 1; transform: translate(calc(var(--fx) - 22px), calc(var(--fy) - 22px)); }
+}
+
+/* The how-to-play panel and the controls card (howto.js). Closable three ways: the X, Esc, a tap on the backdrop. */
+.thow-backdrop { position: fixed; inset: 0; z-index: var(--coach-z, 80); display: grid; place-items: center; background: rgba(14, 8, 28, .6); }
+.thow-backdrop[hidden] { display: none; }
+.thow { position: relative; box-sizing: border-box; width: min(440px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 18px 16px 16px; font-family: var(--coach-font, system-ui, sans-serif); }
+.thow:not(.ui-panel) {
+  color: var(--coach-fg, #1a1030); background: var(--coach-bg, #fffaf0); border: 3px solid var(--coach-edge, #1a1030); border-radius: 18px;
+  box-shadow: 0 6px 0 var(--coach-edge, #1a1030), 0 18px 40px rgba(0, 0, 0, .45);
+}
+.thow.ui-panel { color: var(--ui-text, inherit); }
+.thow h2 { margin: 0 44px 10px 0; font: 800 max(20px, 1.25rem)/1.15 var(--coach-font, system-ui); }
+.thow ol, .thow ul { margin: 0 0 12px; padding: 0; list-style: none; }
+.thow li { display: flex; gap: 10px; align-items: center; min-height: 44px; font: 700 max(16px, 1rem)/1.3 var(--coach-font, system-ui); }
+.thow li .thow-icon { flex: 0 0 32px; text-align: center; font-size: 22px; }
+.thow kbd { font: inherit; padding: 1px 7px; border-radius: 6px; border: 2px solid currentColor; border-bottom-width: 4px; background: rgba(255, 255, 255, .5); }
+.thow button { min-width: 44px; min-height: 44px; font: 800 max(16px, 1rem)/1 var(--coach-font, system-ui); cursor: pointer; }
+.thow-close { position: absolute; top: 6px; right: 6px; border: 0; background: none; color: inherit; font-size: 26px !important; }
+.thow-replay { padding: 0 16px; border: 3px solid var(--coach-edge, #1a1030); border-radius: 14px; background: var(--coach-accent, #ffcf3f); color: var(--coach-edge, #1a1030); }
+
+.tcontrols {
+  position: fixed; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); z-index: var(--coach-z, 80); transform: translateX(-50%); pointer-events: none;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; max-width: calc(100vw - 16px); padding: 6px 12px; border-radius: 14px;
+  color: #fff; background: rgba(14, 8, 28, .78); font: 700 max(16px, 1rem)/1.3 var(--coach-font, system-ui, sans-serif);
+}
+.tcontrols[data-pos="top"] { top: max(12px, env(safe-area-inset-top)); bottom: auto; }
+.tcontrols[hidden] { display: none; }
+.tcontrols kbd { font: inherit; padding: 0 6px; border-radius: 6px; border: 2px solid currentColor; border-bottom-width: 3px; }
+.tcontrols .used { opacity: .45; }

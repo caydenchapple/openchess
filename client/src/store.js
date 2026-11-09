@@ -13,6 +13,7 @@ const defaults = () => ({
   settings: { sound: true, theme: 'dark', autoReview: false },
   games: [], // newest first
   mistakes: [], // puzzles from your own blunders
+  teach: { progress: null, tips: {} }, // tutorial kit state: which steps and tips were already shown
 });
 
 let state;

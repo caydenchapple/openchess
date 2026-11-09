@@ -7,6 +7,7 @@ import { net } from '../net.js';
 import { get, addGame, save, findGame } from '../store.js';
 import { applyResult, isProvisional } from '../rating.js';
 import { play } from '../sound.js';
+import { teaching } from '../teaching.js';
 import { session, saveActive, loadActive, clearActive, TC_LABEL } from '../session.js';
 
 const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 };
@@ -89,6 +90,10 @@ export function mount(root) {
       h('div', { class: 'side stack' },
         h('div', { class: 'card' }, dom.status, h('div', { style: { marginTop: '.8rem' } }, dom.moves), dom.controls),
         dom.result)));
+    dom.side = root.querySelector('.side');
+    dom.side.prepend(teaching.card.el); // inside the side panel, not floating over the board
+    teaching.card.show();
+    cleanups.push(() => { teaching.card.hide(); document.body.append(teaching.card.el); });
   }
 
   function setupBoard(orientation, fen) {
@@ -223,6 +228,7 @@ export function mount(root) {
   // ---------- moves ----------
   function onUserMove(m) {
     if (over || chess.turn() !== G.color) { board.setPosition(chess.fen()); return; }
+    teaching.card.used('move');
     if (G.mode === 'online') {
       net.send({ t: 'move', ...m });
     }
@@ -276,6 +282,7 @@ export function mount(root) {
   function finish(result, reason, serverPgn) {
     if (over) return;
     over = true; thinking = false;
+    teaching.card.hide();
     board.setInteractive(null);
     clearActive();
     if (G.mode === 'online') clearOnline();
@@ -355,6 +362,8 @@ export function mount(root) {
     else t = mine ? 'Your move' : G.mode === 'online' ? "Opponent's move" : `${G.opp.name} to move`;
     if (chess.inCheck()) t += ' — check!';
     dom.status.textContent = t;
+    if (mine && chess.inCheck()) teaching.tips.once('check', 'You are in check: move the king, block the attack, or capture the attacker.');
+    if (G.time && chess.history().length === 0 && mine && G.color === 'w') teaching.tips.once('clock', 'Your clock starts after Black replies to your first move.');
   }
 
   function armConfirm(key, fn) {
@@ -374,8 +383,8 @@ export function mount(root) {
     dom.controls.append(h('button', { onclick: () => board.flip() }, '⇅ Flip'));
     if (G.mode === 'computer') {
       dom.controls.append(
-        h('button', { disabled: plies < (G.color === 'w' ? 2 : 3) || chess.turn() !== G.color, onclick: takeback }, '↶ Take back'),
-        h('button', { disabled: chess.turn() !== G.color || thinking, onclick: hint }, '💡 Hint'));
+        h('button', { disabled: plies < (G.color === 'w' ? 2 : 3) || chess.turn() !== G.color, onclick: takeback, title: 'Undo your last move (makes the game unrated)' }, '↶ Take back'),
+        h('button', { disabled: chess.turn() !== G.color || thinking, onclick: hint, title: 'Show a good move (makes the game unrated)' }, '💡 Hint'));
     }
     if (G.mode === 'online' && plies >= 2) {
       if (drawOfferFromOpp) {
@@ -408,6 +417,7 @@ export function mount(root) {
   }
 
   async function hint() {
+    teaching.card.used('hint');
     hintUsed = true;
     toast('Hint used — this game will be unrated.');
     const { best } = await engine.search(chess.fen(), { depth: 12, movetime: 1500 });

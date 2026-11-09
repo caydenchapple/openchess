@@ -7,7 +7,8 @@
     "start": "node --env-file-if-exists=.env server/index.js",
     "dev": "node scripts/build.js --watch & node --env-file-if-exists=.env --watch server/index.js",
     "test": "node --test test/*.test.js",
-    "prestart": "node scripts/build.js"
+    "prestart": "node scripts/build.js",
+    "check:tutorial": "node scripts/tutorial-seed.mjs .tutorial-seed.js && tsx scripts/tutorial-check.mts http://localhost:3000/#/review/seedgame01 --init .tutorial-seed.js --out .tutorial-check"
   },
   "keywords": [
     "chess",
@@ -29,5 +30,9 @@
   "private": false,
   "engines": {
     "node": ">=22.9"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.0",
+    "tsx": "^4.23.15"
   }
 }

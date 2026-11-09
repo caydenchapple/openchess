@@ -9,6 +9,7 @@ import * as history from './views/history.js';
 import * as profile from './views/profile.js';
 import * as train from './views/train.js';
 import { session } from './session.js';
+import { teaching } from './teaching.js';
 
 document.documentElement.dataset.theme = get().settings.theme === 'light' ? 'light' : 'dark';
 
@@ -58,6 +59,8 @@ function joinInvite(code) {
   cleanup = () => offs.forEach((f) => f());
 }
 
+$('#howto-btn').addEventListener('click', (e) => teaching.toggleHowTo(e.currentTarget));
+teaching.enterScreen();
 window.addEventListener('hashchange', route);
 route();
 
