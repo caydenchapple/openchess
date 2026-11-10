@@ -1,19 +1,9 @@
-import { h, twoStep } from '../util.js';
+import { h } from '../util.js';
 import { Board } from '../board.js';
 import { get } from '../store.js';
-import { net } from '../net.js';
 import { session, loadActive } from '../session.js';
 import { currentStreak, dayKey } from '../lessons-logic.js';
-import { LEVELS } from '../levels.js';
 import { icon } from '../icons.js';
-
-/** One click: a friendly computer opponent, you play White, no clock. */
-function quickGame() {
-  const r = get().ratings.computer.r;
-  const levelId = [...LEVELS].filter((l) => l.group === 'learn' || l.group === 'club').filter((l) => l.elo >= 600 && l.elo <= 1800).sort((a, b) => Math.abs(a.elo - r) - Math.abs(b.elo - r))[0].id;
-  session.cfg = { mode: 'computer', levelId, color: 'w', time: 0, inc: 0 };
-  location.hash = '#/game';
-}
 
 export function mount(root) {
   const st = get();
@@ -28,19 +18,16 @@ export function mount(root) {
     h('section', { class: 'hero simple' },
       h('div', { class: 'stack' },
         h('h1', {}, 'Play chess'),
-        h('p', { class: 'lead' }, 'It\'s free. No sign-up. Press the button and play.'),
+        h('p', { class: 'lead' }, 'It\'s free. No sign-up. Press the button, then choose who you want to play.'),
         unfinished
           ? h('div', { class: 'stack' },
             h('button', { class: 'btn primary huge', onclick: () => { session.cfg = { resume: true }; location.hash = '#/game'; } }, icon('play'), ' Continue your game'),
-            h('button', { class: 'btn big', onclick: twoStep('Click again to replace your unfinished game', quickGame) }, 'Start a new game'))
-          : h('button', { class: 'btn primary huge', onclick: quickGame }, icon('play'), ' Play now'),
+            h('a', { class: 'btn big', href: '#/play' }, 'Start a new game'))
+          : h('a', { class: 'btn primary huge', href: '#/play' }, icon('play'), ' Play now'),
         h('div', { class: 'learn-cta' },
           h('a', { class: 'btn big', href: '#/learn' }, icon('cap'), ' Train with a plan'),
           (() => { const s = currentStreak(st.learn.streak, dayKey()); return s.count ? h('span', { class: 'streak-pill' }, icon('flame', 16), ` ${s.count}-day streak`) : null; })()),
-        h('p', { class: 'small-links' },
-          h('a', { href: '#/play' }, 'Pick a different opponent'),
-          lastReviewable && h('span', {}, ' · '),
-          lastReviewable && h('a', { href: '#/history' }, 'See my games'))),
+        lastReviewable && h('p', { class: 'small-links' }, h('a', { href: '#/history' }, 'See my games'))),
       h('div', { class: 'board-demo' }, boardEl)),
     h('section', { class: 'points' },
       point(icon('play', 40), 'Easy to start', 'Play against the computer. Click a piece, then click where it should go.'),
