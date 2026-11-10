@@ -12,3 +12,6 @@ playtest-report/
 polish/
 .playtest/
 dist/
+worker/.deployed-url
+public/chunks/
+worker/.wrangler/

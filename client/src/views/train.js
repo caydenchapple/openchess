@@ -59,14 +59,14 @@ export function mount(root) {
       board.setInteractive(null);
       if (!m.starter) updateMistake(m.fen, { solved: (m.solved || 0) + 1, attempts: (m.attempts || 0) + 1 });
       m.solved = (m.solved || 0) + 1;
-      setPrompt(m, '✅ Correct!', m.starter ? `${played.san} is checkmate.` : `${played.san} was the computer's choice.`);
+      setPrompt(m, 'Correct!', m.starter ? `${played.san} is checkmate.` : `${played.san} was the computer's choice.`);
       clear(actions); actions.append(h('button', { class: 'primary', onclick: next }, 'Next puzzle ›'));
     } else {
       play('wrong'); tries++;
       m.attempts = (m.attempts || 0) + 1; if (!m.starter) updateMistake(m.fen, { attempts: m.attempts });
       setTimeout(() => { board.setPosition(m.fen); board.setInteractive(new Chess(m.fen).turn()); }, 350);
       const same = !m.starter && played.san === m.played;
-      setPrompt(m, '❌ Not quite — try another move',
+      setPrompt(m, 'Not quite — try another move',
         same ? `${m.played} is the move that was played in the game. Look for something better.` : `${played.san} is not the best move here. You can try again or press "Show solution".`);
       teaching.tips.fail('train-stuck', { after: 3, text: 'Stuck? Tap "Show solution", then try the next puzzle.' });
     }

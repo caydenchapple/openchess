@@ -1,0 +1,15 @@
+name = "openchess-rooms"
+main = "index.js"
+compatibility_date = "2026-11-01"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "RoomDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RoomDO"]
+
+[vars]
+# extra origins (besides *.pages.dev and localhost) that may open room connections, comma separated
+ALLOWED_ORIGINS = ""

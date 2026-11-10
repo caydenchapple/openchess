@@ -81,7 +81,7 @@ export function mount(root) {
 
   function planCard(a) {
     const p = trainingPlan(a);
-    return h('div', { class: 'card stack' }, h('h2', {}, '🎓 Your training plan'),
+    return h('div', { class: 'card stack' }, h('h2', {}, 'Your training plan'),
       h('p', {}, p.summary),
       p.focus.map((f) => h('div', { class: 'lesson' }, h('b', {}, f.title), h('p', { class: 'small', style: { margin: '.2rem 0' } }, f.why), h('ul', { class: 'small' }, f.drills.map((d) => h('li', {}, d))))),
       h('p', {}, h('b', {}, 'Habit for every move: '), p.habit),

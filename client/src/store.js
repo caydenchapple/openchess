@@ -27,6 +27,7 @@ function load() {
       return {
         ...d, ...raw,
         ratings: { ...d.ratings, ...raw.ratings },
+        learn: { ...d.learn, ...(raw.learn ?? {}), streak: { ...d.learn.streak, ...(raw.learn?.streak ?? {}) } }, // older saves had a different shape
         settings: { ...d.settings, ...raw.settings },
       };
     }

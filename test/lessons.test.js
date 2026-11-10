@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { Chess } from 'chess.js';
 import { CURRICULUM } from '../client/src/lessons-data.js';
 import {
-  emptyLearn, addDays, daysBetween, addPoints, currentStreak, weekView, reviewExercise, dueIds, INTERVALS, starsFor,
-  completeLesson, statuses, recommend, dailyPlan, flatLessons, exerciseIndex, THEME_LESSONS, DAILY_GOAL,
+  emptyLearn, addDays, daysBetween, addPoints, currentStreak, weekView, reviewExercise, dueIds, INTERVALS,
+  flatLessons, exerciseIndex, THEME_LESSONS, DAILY_GOAL, TOPIC_BASE, expectedScore, exerciseRating, playerLevel, recordResult,
+  getSkill, topicChance, topicNeeds, planSession, TARGET_SUCCESS,
 } from '../client/src/lessons-logic.js';
 
 const uciOf = (m) => m.from + m.to + (m.promotion ?? '');
@@ -37,7 +38,7 @@ test('the curriculum is well formed: legal positions, unique ids, one right quiz
   assert.ok(exercises >= 40, `only ${exercises} exercises`);
 });
 
-test('lessons named by the recommendation rules exist', () => {
+test('lessons named by the plan rules exist', () => {
   const ids = new Set(flatLessons(CURRICULUM).map((l) => l.id));
   for (const list of Object.values(THEME_LESSONS)) for (const id of list) assert.ok(ids.has(id), id);
 });
@@ -86,36 +87,75 @@ test('spaced repetition: right answers climb the boxes, a miss goes back and ret
   assert.deepEqual(dueIds(L, '2026-10-01'), []);
 });
 
-test('stars: first-try accuracy, best result is kept', () => {
-  assert.equal(starsFor(5, 5), 3); assert.equal(starsFor(4, 5), 2); assert.equal(starsFor(2, 5), 1);
-  const L = emptyLearn();
-  completeLesson(L, 'mate1', 5, 6); assert.equal(L.done.mate1.stars, 2);
-  completeLesson(L, 'mate1', 2, 6); assert.equal(L.done.mate1.stars, 2); // a worse retry does not lower it
-  completeLesson(L, 'mate1', 6, 6); assert.equal(L.done.mate1.stars, 3);
+test('every topic has a difficulty and exercises whose difficulty is in a sensible range', () => {
+  for (const l of flatLessons(CURRICULUM)) {
+    assert.ok(TOPIC_BASE[l.id], `${l.id} needs a base difficulty`);
+    for (const ex of l.exercises) { const d = exerciseRating(l.id, ex); assert.ok(d > 400 && d < 2400, `${ex.id}: ${d}`); }
+  }
 });
 
-test('path: lessons unlock in order; recommendations follow your weak spots when they apply', () => {
-  const L = emptyLearn();
-  const order = flatLessons(CURRICULUM).map((l) => l.id);
-  let st = statuses(CURRICULUM, L);
-  assert.equal(st[order[0]], 'next'); assert.equal(st[order[1]], 'locked');
-  assert.equal(recommend(CURRICULUM, L, {}).lesson.id, order[0]);
-  // hung pieces are a weakness, but that lesson is still locked: stay on the path
-  assert.equal(recommend(CURRICULUM, L, { 'hung-piece': 5 }).personal, false);
-  completeLesson(L, order[0], 6, 6);
-  completeLesson(L, order[1], 3, 6); // free pieces: 1 star
-  st = statuses(CURRICULUM, L); assert.equal(st[order[2]], 'next');
-  const rec = recommend(CURRICULUM, L, { 'hung-piece': 5 });
-  assert.equal(rec.personal, true); assert.equal(rec.lesson.id, 'free'); assert.match(rec.reason, /undefended/);
+test('player level: beginners start low, ratings and review performance raise it', () => {
+  assert.equal(playerLevel({}), 800);
+  assert.equal(playerLevel({ computer: 1000, games: 0 }), 800); // no games yet: a default rating tells us nothing
+  assert.ok(playerLevel({ computer: 1400, online: 1300, performance: 1500, games: 20 }) > 1350);
+  assert.ok(playerLevel({ computer: 3000, games: 50 }) <= 2200);
 });
 
-test('daily practice: due exercises first, then repeats weighted toward weak lessons', () => {
+test('skill model: solving raises your rating, failing lowers it, and hard exercises count for more', () => {
   const L = emptyLearn();
+  const hard = 1300; const easy = 700;
+  const a = recordResult(L, 'forks', hard, true, 1000).r;
+  assert.ok(a > 1000);
+  const L2 = emptyLearn();
+  const b = recordResult(L2, 'forks', easy, true, 1000).r;
+  assert.ok(b > 1000 && b < a, 'beating an easy exercise gains less');
+  const L3 = emptyLearn();
+  assert.ok(recordResult(L3, 'forks', easy, false, 1000).r < 1000);
+  assert.ok(expectedScore(1000, 1000) === 0.5 && expectedScore(1400, 1000) > 0.9);
+  assert.ok(topicChance(L, 'forks', 1000) > topicChance(emptyLearn(), 'forks', 1000));
+});
+
+test('what your games say about you steers the topics', () => {
+  const { needs } = topicNeeds({ 'hung-piece': 6, 'missed-tactic': 2 });
+  assert.ok(needs.free > needs.forks && needs.routine > 0);
+  assert.deepEqual(topicNeeds({}).needs, {});
+});
+
+const sessionOf = (L, ctx, seed = 1) => { let x = seed; const rand = () => ((x = (x * 16807) % 2147483647) / 2147483647); return planSession(CURRICULUM, L, ctx, '2026-11-09', rand); };
+
+test('training plan: a beginner starts with simple topics, with a short lesson first, and never sees advanced ones', () => {
+  const plan = sessionOf(emptyLearn(), { level: 600, themes: {} });
+  const exs = plan.items.filter((i) => i.type === 'ex');
+  assert.equal(exs.length, 8);
+  assert.equal(plan.items[0].type, 'intro'); // a new topic is taught before it is tested
+  const topics = new Set(exs.map((e) => e.topic));
+  assert.ok(![...topics].some((t) => TOPIC_BASE[t] > 900 + 100), `advanced topics for a 600 player: ${[...topics]}`);
+  assert.equal(new Set(exs.map((e) => e.id)).size, 8);
+});
+
+test('training plan: a strong player skips the basics and gets exercises near the 3-in-4 target', () => {
+  const L = emptyLearn();
+  const plan = sessionOf(L, { level: 1700, themes: {} });
+  assert.ok(plan.items.every((i) => i.type !== 'intro' || TOPIC_BASE[i.topic] > 1200), 'no lessons on things far below their level');
   const idx = exerciseIndex(CURRICULUM);
-  assert.deepEqual(dailyPlan(CURRICULUM, L, '2026-11-09'), []); // nothing learned yet
-  completeLesson(L, 'mate1', 3, 6); // 1 star
-  const m = [...idx.keys()].filter((id) => id.startsWith('mate1'));
-  reviewExercise(L, m[0], false, '2026-11-08'); // due on the 9th
-  const plan = dailyPlan(CURRICULUM, L, '2026-11-09', {}, 5, () => 0.3);
-  assert.equal(plan[0], m[0]); assert.equal(plan.length, 5); assert.equal(new Set(plan).size, 5);
+  for (const it of plan.items.filter((i) => i.type === 'ex')) {
+    const p = expectedScore(getSkill(L, it.topic, 1700).r, exerciseRating(it.topic, idx.get(it.id).ex));
+    assert.ok(p > 0.5, `${it.id} is too hard for them (${p.toFixed(2)})`);
+  }
 });
+
+test('training plan: your own mistakes steer it, and missed exercises come back first', () => {
+  const counts = {}; let runs = 0;
+  for (let seed = 1; seed <= 30; seed++) {
+    for (const it of sessionOf(emptyLearn(), { level: 1000, themes: { 'hung-piece': 10 } }, seed).items) if (it.type === 'ex') { counts[it.topic] = (counts[it.topic] ?? 0) + 1; runs++; }
+  }
+  assert.ok(counts.free / runs > 0.3, `free pieces should dominate when the games show hung pieces: ${JSON.stringify(counts)}`);
+  const L = emptyLearn();
+  L.skills.free = { r: 1000, n: 5, intro: true };
+  reviewExercise(L, 'free-3', false, '2026-11-08');
+  const plan = sessionOf(L, { level: 1000, themes: {} }, 7);
+  assert.equal(plan.items.find((i) => i.type === 'ex').id, 'free-3');
+  assert.match(plan.items.find((i) => i.type === 'ex').reason, /sticks/);
+});
+
+test('the target success rate is 3 in 4', () => { assert.equal(TARGET_SUCCESS, 0.75); });

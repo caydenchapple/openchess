@@ -11,6 +11,7 @@ import { findGame, updateGame, addGame, addMistakes, get } from '../store.js';
 import { play } from '../sound.js';
 import { detectOpening } from '../openings.js';
 import { teaching } from '../teaching.js';
+import { icon } from '../icons.js';
 
 const CLS_LABEL = {
   book: 'Book', best: 'Best', excellent: 'Excellent', good: 'Good',
@@ -104,9 +105,9 @@ export function mount(root, params) {
       h('button', { id: 'btn-back', 'aria-label': 'Previous move', onclick: () => stepTo(idx - 1) }, '◀'),
       h('button', { id: 'btn-forward', 'aria-label': 'Next move', onclick: () => stepTo(idx + 1) }, '▶'),
       h('button', { 'aria-label': 'End', onclick: () => stepTo(fens.length - 1) }, '⏭'),
-      h('button', { onclick: () => board.flip() }, '⇅ Flip'),
+      h('button', { onclick: () => board.flip() }, icon('flip'), ' Flip'),
       h('button', { id: 'btn-next-mistake', onclick: nextKey }, 'Next mistake ›'),
-      (dom.better = h('button', { id: 'btn-better', disabled: true, onclick: () => { const pl = idx > 0 ? review.plies[idx - 1] : null; if (pl) go(pl.i + 1, !viewBefore); } }, '💡 Better move')));
+      (dom.better = h('button', { id: 'btn-better', disabled: true, onclick: () => { const pl = idx > 0 ? review.plies[idx - 1] : null; if (pl) go(pl.i + 1, !viewBefore); } }, icon('bulb'), ' Better move')));
 
     // --- right column ---
     dom.moves = h('div', { class: 'moves', id: 'review-moves' });
@@ -163,7 +164,7 @@ export function mount(root, params) {
       dom.evalW.style.height = `${pct}%`;
       renderInfo(ply);
       dom.better.disabled = !(ply && mistakeCls.includes(ply.cls));
-      dom.better.textContent = before && ply ? '↩ Back to the game' : '💡 Better move';
+      dom.better.replaceChildren(...(before && ply ? ['Back to the game'] : [icon('bulb'), ' Better move']));
       teaching.reviewState({ onMistake: !!ply && ply.color === myColor && mistakeCls.includes(ply.cls), viewingBetter: before && !!ply });
       markMoves();
       renderGraph();
@@ -191,7 +192,7 @@ export function mount(root, params) {
           ply.pvSan.length > 1 ? h('span', { class: 'muted small' }, ` The computer's line: ${ply.pvSan.join(' ')}`) : null));
         const tags = ply.tags.filter((t) => THEME_LABELS[t]);
         if (tags.length) dom.info.append(h('div', { class: 'small', style: { marginTop: '.3rem' } }, tags.map((t) => h('span', { class: 'pill', style: { marginRight: '.3rem' } }, THEME_LABELS[t]))));
-        if (mine) dom.info.append(h('p', { class: 'small', style: { marginTop: '.5rem' } }, '🎓 ', explainPly(ply, fens[ply.i], fens[ply.i + 1])));
+        if (mine) dom.info.append(h('p', { class: 'small', style: { marginTop: '.5rem' } }, icon('cap', 16), ' ', explainPly(ply, fens[ply.i], fens[ply.i + 1])));
         dom.info.append(h('p', { class: 'small muted', style: { margin: '.4rem 0 0' } }, viewBefore ? 'Green arrow: the better move. Red arrow: the move that was played. Use ↩ Back to the game to return.' : 'Use the 💡 Better move button above the board to see it.'));
       }
     }
@@ -271,7 +272,7 @@ export function mount(root, params) {
         o.pitfalls.length ? h('div', {}, h('b', {}, 'Common pitfalls'), h('ul', {}, o.pitfalls.map((p) => h('li', {}, p)))) : null,
         o.keySquares && h('p', {}, h('b', {}, 'Key squares: '), o.keySquares),
         o.nextStep && h('p', {}, h('b', {}, 'Next step: '), o.nextStep));
-      const btn = h('button', { onclick: () => { const open = body.style.display === 'none'; body.style.display = open ? '' : 'none'; btn.textContent = open ? 'Hide opening notes' : '📖 Opening notes'; } }, '📖 Opening notes');
+      const btn = h('button', { onclick: () => { const open = body.style.display === 'none'; body.style.display = open ? '' : 'none'; btn.textContent = open ? 'Hide opening notes' : 'Opening notes'; } }, 'Opening notes');
       wrap.append(btn, body);
       return wrap;
     }
@@ -293,14 +294,14 @@ export function mount(root, params) {
     // --- coach report (built-in rules, no AI service) ---
     function showReport(r) {
       clear(dom.coach);
-      const card = h('div', { class: 'card' }, h('h2', {}, '🎓 Coach report'));
+      const card = h('div', { class: 'card' }, h('h2', {}, 'Coach report'));
       dom.coach.append(card);
       const c = reviewReport({ review: r, game, fens });
       card.append(h('p', {}, c.summary));
       if (c.opening?.comment) card.append(h('p', {}, h('b', {}, 'Opening: '), c.opening.comment, c.opening.tip ? ` Tip: ${c.opening.tip}` : ''));
       if (c.strengths?.length) card.append(h('div', {}, h('b', {}, 'What you did well'), h('ul', {}, c.strengths.map((s) => h('li', {}, s)))));
       card.append(h('h3', { style: { marginTop: '1rem' } }, 'Lessons for next game'));
-      c.lessons.forEach((l, i) => card.append(h('div', { class: 'lesson' }, h('b', {}, `${i + 1}. ${l.title}`), h('p', { class: 'small', style: { margin: '.2rem 0' } }, l.body), l.drill && h('div', { class: 'drill' }, '🏋️ Drill: ', l.drill))));
+      c.lessons.forEach((l, i) => card.append(h('div', { class: 'lesson' }, h('b', {}, `${i + 1}. ${l.title}`), h('p', { class: 'small', style: { margin: '.2rem 0' } }, l.body), l.drill && h('div', { class: 'drill' }, 'Drill: ', l.drill))));
       if (c.keyMoments?.length) {
         card.append(h('h3', { style: { marginTop: '1rem' } }, 'Key moments'));
         for (const k of c.keyMoments) {
@@ -314,7 +315,7 @@ export function mount(root, params) {
     // --- position insight: engine lines + rule-based observations for the position on the board ---
     function insightCard() {
       const btn = h('button', { class: 'primary' }, 'Analyse this position');
-      const card = h('div', { class: 'card stack' }, h('h2', {}, '🔍 Position insight'),
+      const card = h('div', { class: 'card stack' }, h('h2', {}, 'Position insight'),
         h('p', { class: 'muted small', style: { margin: 0 } }, 'Step to any move, then ask Stockfish for the best continuations and a plain-language read of the position.'), btn, dom.insight);
       btn.addEventListener('click', async () => {
         btn.disabled = true; btn.textContent = 'Analysing…';

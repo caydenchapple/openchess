@@ -18,12 +18,12 @@
     <a class="brand" href="#/" aria-label="OpenChess home"><span class="logo" aria-hidden="true">♞</span> OpenChess</a>
     <nav aria-label="Main">
       <a href="#/play" data-nav="play">Play</a>
-      <a href="#/learn" data-nav="learn">Learn</a>
+      <a href="#/learn" data-nav="learn">Train</a>
       <a href="#/history" data-nav="history">My games</a>
       <a href="#/profile" data-nav="profile">My progress</a>
     </nav>
     <a class="streak" id="streak-chip" href="#/learn" hidden></a>
-    <span class="online" id="online-count" title="Players connected right now"></span>
+    
     <button type="button" id="howto-btn" class="help" aria-label="How to play" title="How to play">?</button>
   </header>
   <main id="app" tabindex="-1"></main>
@@ -32,6 +32,7 @@
     <a href="#/about">About</a>
   </footer>
   <noscript><p style="padding:2rem">OpenChess needs JavaScript to run the board and engine.</p></noscript>
+  <script src="/config.js"></script>
   <script type="module" src="/app.js"></script>
 </body>
 </html>

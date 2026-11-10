@@ -19,7 +19,7 @@ async function pump() {
 }
 
 /** @returns {Promise<{best:string|null, lines:{multipv:number,depth:number,cp:number,mate:number|null,pv:string[]}[]}>} */
-export function search(fen, { depth = 16, multipv = 3, searchmoves = null } = {}) {
+export function search(fen, { depth = 16, nodes = null, multipv = 3, searchmoves = null, strength = null } = {}) {
   return new Promise((resolve) => {
     queue.push(() => new Promise((done) => {
       const e = boot();
@@ -43,8 +43,11 @@ export function search(fen, { depth = 16, multipv = 3, searchmoves = null } = {}
       };
       e.processCommand('ucinewgame');
       e.processCommand(`setoption name MultiPV value ${multipv}`);
+      if (strength?.uciElo) { e.processCommand('setoption name UCI_LimitStrength value true'); e.processCommand(`setoption name UCI_Elo value ${strength.uciElo}`); e.processCommand('setoption name Skill Level value 20'); }
+      else if (strength?.skill != null) { e.processCommand('setoption name UCI_LimitStrength value false'); e.processCommand(`setoption name Skill Level value ${strength.skill}`); }
+      else { e.processCommand('setoption name UCI_LimitStrength value false'); e.processCommand('setoption name Skill Level value 20'); }
       e.processCommand(`position fen ${fen}`);
-      e.processCommand(`go depth ${depth}${searchmoves ? ` searchmoves ${searchmoves.join(' ')}` : ''}`);
+      e.processCommand(nodes ? `go nodes ${nodes}${searchmoves ? ` searchmoves ${searchmoves.join(' ')}` : ''}` : `go depth ${depth}${searchmoves ? ` searchmoves ${searchmoves.join(' ')}` : ''}`);
     }));
     pump();
   });

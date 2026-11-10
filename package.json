@@ -12,7 +12,8 @@
     "build:static": "node scripts/build.js && rm -rf dist && cp -R public dist",
     "verify:lessons": "node scripts/lessons/verify.mjs",
     "generate:lessons": "node scripts/lessons/generate.mjs",
-    "deploy:cloudflare": "npm run build:static && wrangler pages deploy dist --project-name openchess --branch main"
+    "deploy:cloudflare": "node scripts/deploy-cloudflare.mjs",
+    "calibrate:levels": "node scripts/calibrate-levels.mjs"
   },
   "keywords": [
     "chess",

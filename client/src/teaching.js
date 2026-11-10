@@ -62,12 +62,12 @@ const tips = createTips({
 
 // ----- how to play
 const CONTROLS = [
-  { icon: '♟', label: '{Tap}', text: 'a piece, then a highlighted square — or drag the piece' },
+  { icon: '♙', label: '{Tap}', text: 'a piece, then a highlighted square — or drag the piece' },
   { icon: '♕', label: 'Promotion', text: 'pick a piece when a pawn reaches the last rank' },
-  { icon: '⏱', label: 'Clocks', text: '(timed games) start after Black\'s first move' },
-  { icon: '💡', label: 'Hint / Take back', text: 'help you, but the game becomes unrated' },
-  { icon: '🎓', label: 'After a game', text: 'open "Review my game" for mistakes, accuracy and lessons' },
-  { icon: '⌨', label: '← →', text: 'step through moves in a review (↑ ↓ jump to start / end)' },
+  { icon: '◷', label: 'Clocks', text: '(timed games) start after Black\'s first move' },
+  { icon: '✦', label: 'Hint / Take back', text: 'help you, but the game becomes unrated' },
+  { icon: '★', label: 'After a game', text: 'open "Review my game" for mistakes, accuracy and lessons' },
+  { icon: '⇆', label: '← →', text: 'step through moves in a review (↑ ↓ jump to start / end)' },
 ];
 const replayable = {
   howToPlay: () => tutorial.howToPlay(),
@@ -85,8 +85,8 @@ const howto = createHowTo({ tutorial: replayable, input, bindings, controls: CON
 const card = createControlsCard({
   input, bindings, position: 'bottom',
   entries: [
-    { name: 'move', icon: '♟', label: '{Tap}', text: 'a piece, then a highlighted square (or drag)' },
-    { name: 'hint', icon: '💡', label: 'Hint', text: 'shows a good move but makes the game unrated' },
+    { name: 'move', icon: '♙', label: '{Tap}', text: 'a piece, then a highlighted square (or drag)' },
+    { name: 'hint', icon: '✦', label: 'Hint', text: 'shows a good move but makes the game unrated' },
   ],
 });
 

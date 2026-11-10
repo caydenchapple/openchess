@@ -2,11 +2,12 @@
 
 Free, open-source chess. **No sign-up, no ads, no paywall, no AI services or API keys.**
 
-- ♞ **Play the computer** — 12 levels (≈400 → full strength), Stockfish 19 running in your browser
-- 🌐 **Play people online** — quick pairing by time control, or a private invite link for a friend
+- ♞ **Play the computer** — 18 levels from about 400 up to full strength, measured by self-play on Stockfish's Elo scale; the top levels are named after champions (Spassky, Polgár, Karpov, Anand, Kasparov, Carlsen)
+- ♚ **Bobby Fischer bot** — plays his repertoire (1.e4; the Najdorf and King's Indian as Black, including the opening of the "Game of the Century") with his taste for bishops and the initiative, at his peak strength
+- 🌐 **Play a friend online with a code** — host a game and share the 6-letter code, or join with one. No public matchmaking. Draw offers, and takebacks the opponent has to accept
 - 📊 **Post-game review** — every move rated (best → blunder), accuracy by phase, evaluation graph, opening detection, estimated performance rating
 - 🎓 **Built-in coach** (plain code, no AI model) — game summary, strengths, three personal lessons with drills, an explanation of each key mistake, opening notes, "position insight", and a training plan
-- 📚 **Step-by-step lessons** — 10 lessons in 5 units (checkmate, free pieces, opening principles, forks, skewers, pins, mate in two, pawn endings, a thinking routine), daily practice with spaced repetition, stars, and a daily 🔥 streak with weekly freezes. Recommendations follow the mistakes found in your own reviewed games.
+- 📚 **Training that fits you** — you don't pick lessons. Each session is built from your ratings, your reviewed games and how you solve exercises, at a difficulty you should solve about 3 times in 4, with spaced repetition and a daily streak
 - 🧭 **Light-touch teaching** — a controls card, one-time tips, a 3-step coach walk-through of your first review, and a "?" how-to-play panel (plan in [docs/GAME_BRIEF.md](docs/GAME_BRIEF.md))
 - 🧩 **Train on your own mistakes** — every blunder becomes a puzzle
 - 🔒 **Private** — games, ratings and settings live in your browser's `localStorage`
@@ -58,26 +59,44 @@ just a random id + display name from the browser. There is no chat (nothing to m
 
 ## Hosting notes
 
-- Single Node process; game state is in memory (restart = ongoing online games end).
-- WebSocket and HTTP share one port; a reverse proxy must pass `Upgrade` headers on `/ws`.
+- Single Node process; rooms live in memory (restart = ongoing online games end).
+- WebSocket and HTTP share one port; a reverse proxy must pass `Upgrade` headers on `/ws/<CODE>`.
 - Optional env: `PORT` (default 3000), `ALLOWED_ORIGINS` (extra WebSocket origins, comma separated).
 - Stockfish is served from `/vendor/stockfish/` (≈3.5 MB, cached for a week).
 - Everything else (engine, review, coach) runs in the player's browser, so hosting costs almost nothing.
 
-## Lessons
+## Training
 
-`client/src/lessons-data.js` holds the curriculum, `lessons-logic.js` the learning engine (stars, Leitner-box spaced repetition at
-1/3/7/14/30 days, daily plan, streaks, recommendations) and `views/learn.js` the screens. Every exercise with one best answer was
-generated and then checked with Stockfish 19: `npm run generate:lessons` rebuilds the sets, `npm run verify:lessons` re-checks all of them.
-The teaching text is ours and summarises widely used training ideas (pattern recognition, spaced repetition, a candidate-move routine,
-early endgame study, learning from your own games). It is not a promise of results.
+`client/src/lessons-data.js` holds the topics (short lessons plus exercises), `lessons-logic.js` the player model, and `views/learn.js` the screens.
+There is no lesson menu: `planSession` builds each session. Every topic has a skill rating for you and every exercise a difficulty on the same
+Elo-like scale; sessions pick exercises you should solve about 3 times in 4, steer toward the mistakes found in your reviewed games
+(hung pieces → free pieces, missed tactics → forks/skewers/pins, …), bring missed exercises back after 1/3/7/14/30 days, and show a short lesson
+only the first time a topic comes up (never for things far below your level). Exercises with one best answer were generated and checked with
+Stockfish 19: `npm run generate:lessons` rebuilds them, `npm run verify:lessons` re-checks all of them. The teaching text is ours and summarises
+widely used training ideas (pattern recognition, spaced repetition, a candidate-move routine, early endgame study, learning from your own games).
+It is not a promise of results.
 
-## Deploying as a static site (Cloudflare Pages or Zephyr Cloud)
+## Computer levels
+
+Strength is set by a node budget (not time), so a slow phone plays as strongly as a laptop. `node scripts/calibrate-grid.mjs` plays many engine settings
+against each other and fits one rating scale (Bradley–Terry), anchored so that Stockfish's own limiter at UCI_Elo 2000 (60k nodes) = 2000; the levels use
+the setting that lands on each Elo. Measured on that scale: a purely random mover ≈ 800, 50% random moves ≈ 1450, one node ≈ 1870, 1k nodes ≈ 2250,
+10k ≈ 2680, 100k ≈ 2985. `npm run calibrate:levels` then checks neighbouring levels head to head (16 games each): every level beat the one below it.
+What to keep in mind: each number is good to about ±100; the spacing between neighbouring levels is approximate (levels weakened by random mistakes win or lose
+very lopsidedly against each other); the Elo is Stockfish's scale, not Chess.com, Lichess or FIDE; and the lowest level is simply a random mover.
+The legends are set to the peak rating of the player they are named after: that is their strength, not their style. Only Bobby Fischer has a style
+(see `client/src/fischer.js` for exactly what that means).
+
+## Deploying to Cloudflare (site + online rooms)
 
 ```bash
-npm run build:static
-npx wrangler pages deploy dist --project-name <your-project>   # Cloudflare Pages
+npx wrangler login
+npm run deploy:cloudflare      # deploys the room server (Worker + Durable Object in worker/) and the static site (Pages)
 ```
+
+The Worker runs the same room code as the Node server, one Durable Object per room code, and `dist/config.js` tells the site where it is,
+so online games work from the static site. Other static hosts: `npm run build:static`, upload `dist/`, and deploy the Worker separately.
+
 
 
 Everything except online play runs in the browser, so `dist/` can be hosted anywhere static:

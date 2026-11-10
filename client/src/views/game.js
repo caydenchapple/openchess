@@ -8,11 +8,12 @@ import { get, addGame, save, findGame } from '../store.js';
 import { applyResult } from '../rating.js';
 import { play } from '../sound.js';
 import { teaching } from '../teaching.js';
+import { icon } from '../icons.js';
 import { session, saveActive, loadActive, clearActive, TC_LABEL } from '../session.js';
 
 const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 };
 const ONLINE_KEY = 'openchess.online';
-const GLYPH = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛' };
+const GLYPH = { p: '♟\uFE0E', n: '♞\uFE0E', b: '♝\uFE0E', r: '♜\uFE0E', q: '♛\uFE0E' }; // \uFE0E: draw as text, never as a colour emoji
 
 function materialDiff(fen) {
   const d = { w: 0, b: 0 }; const caps = { w: [], b: [] };
@@ -40,31 +41,29 @@ export function mount(root) {
   let over = false; let busy = false; let thinking = false; let confirming = null;
   let clocks = { w: 0, b: 0 }; let lastTick = performance.now(); let timed = false;
   let hintUsed = false;
-  let oppConnected = true; let drawOfferFromOpp = false;
+  let oppConnected = true; let drawOfferFromOpp = false; let takebackAsk = null; let takebackSent = false;
   let moveSans = []; let startedAt = Date.now();
 
   root.append(h('div', { class: 'card' }, h('span', { class: 'spinner' }), ' Setting up the board…'));
 
   // ---------- entry ----------
-  const readOnline = () => { try { return JSON.parse(localStorage.getItem(ONLINE_KEY)); } catch { return null; } };
-  const clearOnline = () => { try { localStorage.removeItem(ONLINE_KEY); } catch { /* ignore */ } };
+  // the seat is per browser tab (sessionStorage): two tabs can be two different players
+  const readOnline = () => { try { return JSON.parse(sessionStorage.getItem(ONLINE_KEY)); } catch { return null; } };
+  const clearOnline = () => { try { sessionStorage.removeItem(ONLINE_KEY); } catch { /* ignore */ } };
 
   (async function init() {
     if (cfg?.mode === 'computer') return startComputer(cfg);
-    if (cfg?.mode === 'online') return startOnline(cfg.first);
+    if (cfg?.mode === 'online') return startOnline(cfg.first, cfg.code);
     const active = loadActive();
     if (cfg?.resume || active) {
       if (active?.mode === 'computer') return startComputer(active.cfg, active);
     }
     const stored = readOnline();
-    if (stored) {
-      net.connect();
-      const off = net.on('game', (m) => { off(); startOnline(m); });
-      cleanups.push(off);
-      const open = () => net.send({ t: 'rejoin', ...stored });
-      cleanups.push(net.on('open', open));
-      if (net.open) open();
-      cleanups.push(net.on('error', () => { clearOnline(); location.hash = '#/play'; }));
+    if (stored?.code && stored?.token) {
+      // reload or lost connection: ask the room for our seat back with the token we were given
+      const off = net.on('game', (m) => { off(); startOnline(m, stored.code); });
+      cleanups.push(off, net.on('error', () => { clearOnline(); net.leave(); location.hash = '#/play'; }), net.on('unavailable', () => { clearOnline(); location.hash = '#/play'; }));
+      net.enter(stored.code, { role: 'join', token: stored.token });
       return;
     }
     location.hash = '#/play';
@@ -104,6 +103,10 @@ export function mount(root) {
     cleanups.push(() => board.destroy());
   }
 
+  const onFs = () => renderControls();
+  document.addEventListener('fullscreenchange', onFs);
+  cleanups.push(() => { document.removeEventListener('fullscreenchange', onFs); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); });
+
   // ---------- clocks ----------
   const tickTimer = setInterval(() => {
     const now = performance.now(); const dt = now - lastTick; lastTick = now;
@@ -134,7 +137,7 @@ export function mount(root) {
     G = {
       mode: 'computer', color: c.color, level, time: c.time, inc: c.inc,
       me: { name: get().player.name, rating: get().ratings.computer.r },
-      opp: { name: `Computer · ${level.name}`, rating: level.elo },
+      opp: { name: level.group === 'legend' || level.group === 'famous' ? level.name : `Computer · ${level.name}`, rating: level.elo },
       id: uid(10),
     };
     timed = c.time > 0;
@@ -168,7 +171,7 @@ export function mount(root) {
     const legal = chess.moves({ verbose: true }).map((m) => m.from + m.to + (m.promotion ?? ''));
     const started = performance.now();
     let uci;
-    try { uci = await engine.playMove(fen, legal, G.level); } catch (e) { console.error(e); }
+    try { uci = await engine.playMove(fen, G.level, chess.history()); } catch (e) { console.error(e); }
     // feel natural: don't answer instantly at low levels
     const minDelay = G.level.id <= 5 ? 450 : 250;
     const wait = minDelay - (performance.now() - started);
@@ -180,7 +183,7 @@ export function mount(root) {
   }
 
   // ---------- online games ----------
-  function startOnline(m) {
+  function startOnline(m, code) {
     const color = m.color;
     G = {
       mode: 'online', color, id: m.gameId, token: m.token, time: m.time, inc: m.inc,
@@ -188,7 +191,7 @@ export function mount(root) {
       opp: color === 'w' ? m.black : m.white,
       pgnHeaders: { White: m.white.name, Black: m.black.name },
     };
-    try { localStorage.setItem(ONLINE_KEY, JSON.stringify({ gameId: m.gameId, token: m.token })); } catch { /* ignore */ }
+    try { sessionStorage.setItem(ONLINE_KEY, JSON.stringify({ code, gameId: m.gameId, token: m.token })); } catch { /* ignore */ }
     timed = true;
     clocks = { w: m.clocks.w, b: m.clocks.b };
     chess = new Chess();
@@ -212,18 +215,29 @@ export function mount(root) {
       net.on('draw_offer', () => { drawOfferFromOpp = true; renderControls(); toast('Your opponent offers a draw'); }),
       net.on('draw_declined', () => toast('Draw declined')),
       net.on('opp_status', (s) => { oppConnected = s.connected; renderOppStatus(); }),
-      net.on('game', (s) => { // reconnect resync
+      net.on('game', (s) => { // we reconnected: take the server's word for the position
         clocks = { ...s.clocks }; chess = new Chess(); for (const san of s.moves) chess.move(san);
-        moveSans = chess.history();
+        moveSans = chess.history(); takebackAsk = null; takebackSent = !!(s.takeback && s.takeback.by === G.color);
+        if (s.takeback && s.takeback.by !== G.color) takebackAsk = { plies: 1 };
         const l = chess.history({ verbose: true }).at(-1);
         board.setPosition(chess.fen(), { lastMove: l ? [l.from, l.to] : null });
         if (s.status === 'over') finish(s.result, s.reason, s.pgn);
-        else renderAll();
+        else { renderAll(); afterMove(true); }
       }),
-      net.on('open', () => net.send({ t: 'rejoin', gameId: G.id, token: G.token })),
-      net.on('error', (e) => { toast(e.message); net.send({ t: 'rejoin', gameId: G.id, token: G.token }); }),
+      net.on('takeback_request', (r) => { takebackAsk = r; renderControls(); play('check'); }),
+      net.on('takeback_cancelled', () => { takebackAsk = null; renderControls(); }),
+      net.on('takeback_declined', (r) => { takebackSent = false; renderControls(); toast(r.reason || 'Takeback declined'); }),
+      net.on('takeback', (msg) => { // both players agreed: the position goes back
+        takebackAsk = null; takebackSent = false; confirming = null;
+        chess = new Chess(); for (const san of msg.moves) chess.move(san);
+        moveSans = chess.history(); clocks = { ...msg.clocks };
+        const l = chess.history({ verbose: true }).at(-1);
+        board.setArrows([]); board.setPosition(chess.fen(), { lastMove: l ? [l.from, l.to] : null });
+        toast(msg.by === G.color ? 'Takeback accepted' : 'You allowed the takeback');
+        renderAll(); afterMove(true);
+      }),
+      net.on('error', (e) => toast(e.message)),
     );
-    net.connect();
     afterMove(true);
   }
 
@@ -288,7 +302,7 @@ export function mount(root) {
     teaching.card.hide();
     board.setInteractive(null);
     clearActive();
-    if (G.mode === 'online') clearOnline();
+    if (G.mode === 'online') { clearOnline(); net.leave(); }
     play('end');
     const aborted = reason === 'aborted';
     const outcome = result === '1/2-1/2' ? 'draw' : (result === '1-0') === (G.color === 'w') ? 'win' : 'loss';
@@ -384,23 +398,38 @@ export function mount(root) {
     clear(dom.controls);
     if (over) return;
     const plies = chess.history().length;
-    dom.controls.append(h('button', { onclick: () => { board.flip(); dom.boardcol.classList.toggle('flipped'); } }, '⇅ Flip'));
+    dom.controls.append(h('button', { onclick: () => { board.flip(); dom.boardcol.classList.toggle('flipped'); } }, icon('flip'), ' Flip'));
+    if (document.fullscreenEnabled) {
+      const fs = h('button', { title: 'Use the whole screen', onclick: () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); } }, icon(document.fullscreenElement ? 'exitfull' : 'full'), document.fullscreenElement ? ' Exit full screen' : ' Full screen');
+      dom.controls.append(fs);
+    }
     if (G.mode === 'computer') {
       dom.controls.append(
-        h('button', { disabled: plies < (G.color === 'w' ? 2 : 3) || chess.turn() !== G.color, onclick: takeback, title: 'Undo your last move (makes the game unrated)' }, '↶ Take back'),
-        h('button', { disabled: chess.turn() !== G.color || thinking, onclick: hint, title: 'Show a good move (makes the game unrated)' }, '💡 Hint'));
+        h('button', { disabled: plies < (G.color === 'w' ? 2 : 3) || chess.turn() !== G.color, onclick: takeback, title: 'Undo your last move (makes the game unrated)' }, icon('undo'), ' Take back'),
+        h('button', { disabled: chess.turn() !== G.color || thinking, onclick: hint, title: 'Show a good move (makes the game unrated)' }, icon('bulb'), ' Hint'));
     }
-    if (G.mode === 'online' && plies >= 2) {
-      if (drawOfferFromOpp) {
-        dom.controls.append(h('button', { class: 'primary', onclick: () => { net.send({ t: 'draw', action: 'accept' }); } }, 'Accept draw'),
-          h('button', { onclick: () => { drawOfferFromOpp = false; net.send({ t: 'draw', action: 'decline' }); renderControls(); } }, 'Decline'));
-      } else {
-        dom.controls.append(h('button', { onclick: () => { net.send({ t: 'draw', action: 'offer' }); toast('Draw offered'); } }, '½ Offer draw'));
+    if (G.mode === 'online') {
+      const mine = chess.history().filter((_, i) => (i % 2 === 0) === (G.color === 'w')).length;
+      dom.controls.append(h('button', { disabled: !mine || takebackSent, title: 'Your opponent has to agree', onclick: () => { takebackSent = true; net.send({ t: 'takeback', action: 'request' }); renderControls(); } }, icon('undo'), takebackSent ? ' Waiting for an answer…' : ' Ask to take back'));
+      if (plies >= 2) {
+        if (drawOfferFromOpp) {
+          dom.controls.append(h('button', { class: 'primary', onclick: () => { net.send({ t: 'draw', action: 'accept' }); } }, 'Accept draw'),
+            h('button', { onclick: () => { drawOfferFromOpp = false; net.send({ t: 'draw', action: 'decline' }); renderControls(); } }, 'Decline'));
+        } else {
+          dom.controls.append(h('button', { onclick: () => { net.send({ t: 'draw', action: 'offer' }); toast('Draw offered'); } }, icon('equals'), ' Offer draw'));
+        }
+      }
+      if (takebackAsk) {
+        dom.controls.append(h('div', { class: 'banner ask', role: 'alert' },
+          h('b', {}, 'Your opponent wants to take back their move.'),
+          h('div', { class: 'controls' },
+            h('button', { class: 'primary', onclick: () => { net.send({ t: 'takeback', action: 'accept' }); takebackAsk = null; renderControls(); } }, 'Allow it'),
+            h('button', { onclick: () => { net.send({ t: 'takeback', action: 'decline' }); takebackAsk = null; renderControls(); } }, 'No'))));
       }
     }
     if (G.mode === 'computer') dom.controls.append(h('p', { class: 'small muted ctrl-note' }, 'Hint and Take back make the game unrated.'));
     const resignLabel = G.mode === 'online' && plies < 2 ? 'Abort' : 'Resign';
-    dom.controls.append(h('button', { class: 'danger', onclick: armConfirm('resign', doResign) }, confirming === 'resign' ? (plies >= 6 ? 'Resign? Counts as a loss' : `Confirm ${resignLabel.toLowerCase()}?`) : `⚑ ${resignLabel}`));
+    dom.controls.append(h('button', { class: 'danger', onclick: armConfirm('resign', doResign) }, icon('flag'), confirming === 'resign' ? (plies >= 6 ? 'Resign? Counts as a loss' : `Confirm ${resignLabel.toLowerCase()}?`) : ` ${resignLabel}`));
   }
 
   function doResign() {
@@ -449,7 +478,7 @@ export function mount(root) {
     } else if (record && !record.rated) box.append(h('p', { class: 'muted' }, record.plies < 6 ? 'Too short to count for your rating.' : 'Unrated (hint or takeback used).'));
     const actions = h('div', { class: 'controls' });
     if (record) {
-      actions.append(h('a', { class: 'btn primary big', href: `#/review/${record.id}` }, '🎓 Review my game'));
+      actions.append(h('a', { class: 'btn primary big', href: `#/review/${record.id}` }, icon('cap'), ' Review my game'));
     }
     actions.append(
       h('a', { class: 'btn', href: '#/play' }, 'New game'),
