@@ -16,6 +16,12 @@ for (const f of ['stockfish-19-lite-single.js', 'stockfish-19-lite-single.wasm']
 await cp(p('node_modules/chessground/assets/chessground.base.css'), p('public/vendor/chessground.base.css'));
 await cp(p('node_modules/chessground/assets/chessground.cburnett.css'), p('public/vendor/chessground.cburnett.css'));
 
+// self-hosted fonts (Geist, the shadcn/ui default): nothing is loaded from a third party
+await mkdir(p('public/fonts'), { recursive: true });
+for (const [pkg, files] of [['geist', ['geist-latin-wght-normal.woff2', 'geist-latin-ext-wght-normal.woff2']], ['geist-mono', ['geist-mono-latin-wght-normal.woff2', 'geist-mono-latin-ext-wght-normal.woff2']]]) {
+  for (const f of files) await cp(p('node_modules/@fontsource-variable', pkg, 'files', f), p('public/fonts', f));
+}
+
 await rm(p('public/chunks'), { recursive: true, force: true });
 
 const opts = {

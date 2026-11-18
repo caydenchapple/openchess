@@ -15,3 +15,4 @@ dist/
 worker/.deployed-url
 public/chunks/
 worker/.wrangler/
+public/fonts/

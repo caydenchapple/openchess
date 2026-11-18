@@ -56,11 +56,25 @@ const SOUNDS = {
   end: () => { blip({ freq: 392, dur: 0.18, gain: 0.12 }); blip({ freq: 294, dur: 0.3, gain: 0.12, delay: 0.16 }); },
   low: () => blip({ freq: 880, dur: 0.04, type: 'square', gain: 0.05 }),
   start: () => { blip({ freq: 330, dur: 0.1, gain: 0.1 }); blip({ freq: 440, dur: 0.14, gain: 0.1, delay: 0.1 }); },
-  wrong: () => blip({ freq: 140, dur: 0.18, type: 'sawtooth', gain: 0.08, slide: -40 }),
-  right: () => { blip({ freq: 523, dur: 0.1, gain: 0.1 }); blip({ freq: 784, dur: 0.16, gain: 0.1, delay: 0.09 }); },
+  wrong: () => { blip({ freq: 220, dur: 0.12, type: 'triangle', gain: 0.1, slide: -60 }); blip({ freq: 165, dur: 0.2, type: 'triangle', gain: 0.1, slide: -40, delay: 0.09 }); },
+  // lesson sounds: a soft tick for turning a card, a bright two-note chime for a right answer that climbs the longer your run is
+  tap: () => blip({ freq: 620, dur: 0.035, type: 'sine', gain: 0.07 }),
+  card: () => { blip({ freq: 440, dur: 0.05, type: 'triangle', gain: 0.06 }); blip({ freq: 587, dur: 0.07, type: 'triangle', gain: 0.06, delay: 0.04 }); },
+  hint: () => { blip({ freq: 1175, dur: 0.07, gain: 0.05 }); blip({ freq: 1568, dur: 0.1, gain: 0.04, delay: 0.06 }); },
+  right: (run = 0) => {
+    const scale = [523, 587, 659, 784, 880, 1047, 1175, 1319]; const i = Math.min(Math.max(run - 1, 0), scale.length - 3);
+    blip({ freq: scale[i], dur: 0.12, type: 'triangle', gain: 0.12 });
+    blip({ freq: scale[i + 2], dur: 0.2, type: 'triangle', gain: 0.12, delay: 0.08 });
+    blip({ freq: scale[i + 2] * 2, dur: 0.25, type: 'sine', gain: 0.03, delay: 0.08 });
+  },
+  fanfare: (power = 1) => {
+    [523, 659, 784, 1047].forEach((f, k) => blip({ freq: f, dur: 0.22, type: 'triangle', gain: 0.11, delay: k * 0.09 }));
+    if (power > 0.6) [784, 1047, 1319].forEach((f) => blip({ freq: f, dur: 0.6, type: 'sine', gain: 0.07, delay: 0.42 }));
+    if (power > 0.6) for (let k = 0; k < 4; k++) blip({ freq: 2093 + k * 220, dur: 0.06, type: 'sine', gain: 0.03, delay: 0.5 + k * 0.07 });
+  },
 };
 
-export function play(name) {
+export function play(name, arg) {
   if (!get().settings.sound) return;
-  SOUNDS[name]?.();
+  SOUNDS[name]?.(arg);
 }

@@ -19,6 +19,7 @@ const lessons = () => flatLessons(CURRICULUM);
 const lessonById = (id) => lessons().find((l) => l.id === id);
 const calm = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const buzz = (ms) => { try { if (get().settings.sound) navigator.vibrate?.(ms); } catch { /* not supported */ } };
+const badge = (ok) => `<circle cx="80" cy="20" r="19" fill="${ok ? '#81b64c' : '#ca3431'}" stroke="#fff" stroke-width="2.5"/><path d="${ok ? 'M71 21l6 6 12-13' : 'M72 12l16 16M88 12L72 28'}" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`;
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** Everything we know about how you play, in one place. */
@@ -166,7 +167,7 @@ function session(root, cleanups, { plan: given = null, lesson: only = null }) {
   const startedAt = Date.now();
   const before = Object.fromEntries(lessons().map((l) => [l.id, topicChance(L, l.id, p.level)]));
   let n = 0; let done = 0; let firstTry = 0; let combo = 0; let attempts = 0; let solved = false; let hintShown = false; let streakNote = null;
-  let board = null; let key = null; let raf = 0; let alive = true; let cur = null;
+  let board = null; let key = null; let raf = 0; let alive = true; let cur = null; let party = null;
 
   const wrap = h('div', { class: 'run' });
   const stage = h('div', { class: 'stage' });
@@ -226,8 +227,8 @@ function session(root, cleanups, { plan: given = null, lesson: only = null }) {
     const c = lesson.cards[i]; const last = i === lesson.cards.length - 1;
     const boardEl = h('div', { class: 'boardwrap' });
     const finishIntro = () => { const sk = getSkill(L, lesson.id, p.level); sk.intro = true; L.skills[lesson.id] = sk; save(); n++; step(); };
-    const advance = () => (last ? finishIntro() : intro(lesson, i + 1, it));
-    const back = () => intro(lesson, i - 1, it);
+    const advance = () => { play('card'); (last ? finishIntro() : intro(lesson, i + 1, it)); };
+    const back = () => { play('tap'); intro(lesson, i - 1, it); };
     show(h('div', { class: `teach ${c.fen ? 'with-board' : 'plain'}` },
       c.fen && h('div', { class: 'teach-board' }, boardEl),
       h('div', { class: 'teach-copy' },
@@ -242,7 +243,7 @@ function session(root, cleanups, { plan: given = null, lesson: only = null }) {
     if (c.fen) {
       board = new Board(boardEl, { orientation: new Chess(c.fen).turn() });
       board.setPosition(c.fen); board.setInteractive(null);
-      if (c.arrows) board.setArrows(c.arrows);
+      if (c.arrows) setTimeout(() => { if (alive && board) board.setArrows(c.arrows); }, 450);
     }
     key = { advance, arrows: true, back: i > 0 ? back : null };
   }
@@ -257,7 +258,7 @@ function session(root, cleanups, { plan: given = null, lesson: only = null }) {
     const tools = h('div', { class: 'tools' });
     const feedback = h('div', { class: 'fb-slot', role: 'status', 'aria-live': 'polite' });
     const hintBtn = h('button', { class: 'quiet', onclick: () => useHint() }, icon('bulb', 16), 'Hint', keycap('H'));
-    function useHint() { if (solved || hintShown) return; hintShown = true; hintBox.hidden = false; hintBox.textContent = ex.hint; hintBtn.disabled = true; }
+    function useHint() { if (solved || hintShown) return; play('hint'); hintShown = true; hintBox.hidden = false; hintBox.textContent = ex.hint; hintBtn.disabled = true; }
 
     show(h('div', { class: 'ex' },
       h('div', { class: 'ex-board' }, boardEl),
@@ -285,7 +286,7 @@ function session(root, cleanups, { plan: given = null, lesson: only = null }) {
   function feedbackCard(tone, title, text, withNext) {
     const { feedback } = ctx();
     clear(feedback);
-    const nextBtn = withNext && h('button', { class: 'primary big', onclick: () => advance() }, n + 1 >= items.length ? 'Finish' : 'Continue', keycap('↵'));
+    const nextBtn = withNext && h('button', { class: 'primary big', onclick: () => { play('tap'); advance(); } }, n + 1 >= items.length ? 'Finish' : 'Continue', keycap('↵'));
     feedback.append(h('div', { class: 'feedback', 'data-tone': tone },
       h('div', { class: 'fb-title' }, icon(tone === 'good' ? 'check' : tone === 'bad' ? 'close' : 'bulb', 18), title),
       text && h('p', { class: 'fb-text' }, text),
@@ -316,17 +317,20 @@ function session(root, cleanups, { plan: given = null, lesson: only = null }) {
     const ok = ex.mate ? chess.isCheckmate() : ex.answers.includes(uci);
     const { boardEl } = ctx();
     if (ok) {
-      solved = true; play('right'); buzz(12);
+      solved = true; buzz(12);
       board.setPosition(chess.fen(), { lastMove: [mv.from, mv.to] }); board.setInteractive(null);
+      board.setArrows([], [{ square: mv.to, svg: badge(true) }]);
       boardEl.classList.remove('ok'); void boardEl.offsetWidth; boardEl.classList.add('ok');
       const clean = attempts === 1 && !hintShown;
       settle(ex, it, attempts === 1);
+      play('right', clean ? combo : 0);
       feedbackCard('good', clean ? 'Correct' : 'Solved', ex.explain, true);
     } else {
       play('wrong'); buzz(30);
+      board.setArrows([], [{ square: mv.to, svg: badge(false) }]);
       boardEl.classList.remove('shake'); void boardEl.offsetWidth; boardEl.classList.add('shake');
       feedbackCard('bad', 'Not quite', attempts >= 3 ? 'That is not it. If you are stuck, use Show the answer.' : 'Try another move.', false);
-      setTimeout(() => { if (alive && !solved) { board.setPosition(ex.fen); board.setInteractive(new Chess(ex.fen).turn()); } }, 350);
+      setTimeout(() => { if (alive && !solved) { board.setPosition(ex.fen); board.setArrows([]); board.setInteractive(new Chess(ex.fen).turn()); } }, 350);
     }
   }
 
@@ -346,12 +350,13 @@ function session(root, cleanups, { plan: given = null, lesson: only = null }) {
     const { boardEl, answers } = ctx();
     btn.disabled = true;
     if (o.ok) {
-      solved = true; play('right'); buzz(12);
+      solved = true; buzz(12);
       btn.classList.add('right'); btn.querySelector('.mark').replaceChildren(icon('check', 18));
       answers.querySelectorAll('button:not(.right)').forEach((b) => { b.disabled = true; });
       boardEl.classList.remove('ok'); void boardEl.offsetWidth; boardEl.classList.add('ok');
       const clean = attempts === 1 && !hintShown;
       settle(ex, it, attempts === 1);
+      play('right', clean ? combo : 0);
       feedbackCard('good', clean ? 'Correct' : 'Solved', [o.why, ex.explain].filter(Boolean).join(' '), true);
     } else {
       play('wrong'); buzz(30);
@@ -379,7 +384,7 @@ function session(root, cleanups, { plan: given = null, lesson: only = null }) {
       const sk = getSkill(L, only.id, p.level);
       if (!sk.finished) { sk.finished = true; L.skills[only.id] = sk; const res = addPoints(L, 5, t); if (res.extended && !streakNote) streakNote = res; }
     }
-    save(); play('end'); progress(items.length);
+    save(); progress(items.length);
     count.textContent = '';
     const after = Object.fromEntries(lessons().map((l) => [l.id, topicChance(L, l.id, p.level)]));
     const moved = Object.keys(after).filter((k) => after[k] !== before[k]).sort((a, b) => Math.abs(after[b] - before[b]) - Math.abs(after[a] - before[a])).slice(0, 3);
@@ -418,10 +423,13 @@ function session(root, cleanups, { plan: given = null, lesson: only = null }) {
       stage.querySelectorAll('.mv .mvbar i').forEach((i) => { i.style.transform = `scaleX(${i.style.getPropertyValue('--to')})`; });
     }));
     countUp(num.querySelector('.rn'), firstTry);
+    const power = total ? Math.max(0.25, ratio) : 0.6;
+    play('fanfare', power);
+    setTimeout(() => { if (alive) import('../scene3d.js').then((m) => { if (alive) party = m.celebrate(power); }).catch(() => {}); }, 250);
   }
 
   step();
-  return () => { alive = false; cancelAnimationFrame(raf); board?.destroy(); cleanups.forEach((f) => f()); };
+  return () => { alive = false; party?.stop(); cancelAnimationFrame(raf); board?.destroy(); cleanups.forEach((f) => f()); };
 }
 
 export { TOPIC_BASE };

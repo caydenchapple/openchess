@@ -5,11 +5,15 @@ import { session, loadActive } from '../session.js';
 import { currentStreak, dayKey } from '../lessons-logic.js';
 import { icon } from '../icons.js';
 
+const DEMO_FEN = 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R b KQkq - 0 5';
+const DEMO_MOVES = [['d7', 'd6'], ['c1', 'g5'], ['h7', 'h6'], ['g5', 'h4'], ['c8', 'g4'], ['h2', 'h3'], ['g4', 'h5'], ['d1', 'd2'], ['a7', 'a6'], ['a2', 'a3']];
+
 export function mount(root) {
   const st = get();
   const unfinished = loadActive();
   const lastReviewable = st.games[0];
   const boardEl = h('div', { class: 'boardwrap' });
+  const scene = h('div', { class: 'scene', 'aria-hidden': 'true' }, h('div', { class: 'fallback' }, boardEl));
 
   const point = (icon, title, text) => h('div', { class: 'point' },
     h('div', { class: 'point-icon', 'aria-hidden': 'true' }, icon), h('h3', {}, title), h('p', {}, text));
@@ -17,6 +21,7 @@ export function mount(root) {
   root.append(h('div', { class: 'home' },
     h('section', { class: 'hero simple' },
       h('div', { class: 'stack' },
+        h('span', { class: 'hero-badge' }, h('i'), 'Free, open source, no sign-up'),
         h('h1', {}, 'Play chess'),
         h('p', { class: 'lead' }, 'It\'s free. No sign-up. Press the button, then choose who you want to play.'),
         unfinished
@@ -28,17 +33,25 @@ export function mount(root) {
           h('a', { class: 'btn big', href: '#/learn' }, icon('cap'), ' Train with a plan'),
           (() => { const s = currentStreak(st.learn.streak, dayKey()); return s.count ? h('span', { class: 'streak-pill' }, icon('flame', 16), ` ${s.count}-day streak`) : null; })()),
         lastReviewable && h('p', { class: 'small-links' }, h('a', { href: '#/history' }, 'See my games'))),
-      h('div', { class: 'board-demo' }, boardEl)),
+      scene),
     h('section', { class: 'points' },
       point(icon('play', 40), 'Easy to start', 'Play against the computer. Click a piece, then click where it should go.'),
       point(icon('bulb', 40), 'Learn as you play', 'When a game ends, you see your mistakes and simple tips to do better next time.'),
       point(icon('check', 40), 'Free for everyone', 'No account, no ads, no payments. Your games stay on your device.'))));
 
   const b = new Board(boardEl, { orientation: 'w' });
-  b.setPosition('r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQK2R b KQkq - 0 5', { lastMove: ['d2', 'd3'] });
+  b.setPosition(DEMO_FEN, { lastMove: ['d2', 'd3'] });
   b.setInteractive(null);
 
-  return () => b.destroy();
+  // the same position as a 3D board that plays a few quiet moves (loaded on demand; the flat board stays if it cannot run)
+  let three = null; let gone = false;
+  import('../scene3d.js').then((m) => {
+    if (gone || !m.webglAvailable()) return;
+    three = m.boardScene(scene, { fen: DEMO_FEN, moves: DEMO_MOVES });
+    requestAnimationFrame(() => scene.classList.add('live'));
+  }).catch(() => { /* keep the flat board */ });
+
+  return () => { gone = true; three?.destroy(); b.destroy(); };
 }
 
 export function mountAbout(root) {
