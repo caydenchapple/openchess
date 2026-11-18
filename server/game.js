@@ -3,7 +3,8 @@
 import { Chess } from 'chess.js';
 
 export const TIME_CONTROLS = [
-  [1, 0], [3, 0], [3, 2], [5, 0], [5, 3], [10, 0], [10, 5], [15, 10], [30, 0],
+  [1, 0], [2, 0], [3, 0], [5, 0], [10, 0], [15, 0], [30, 0], [60, 0], // the clocks the site offers: minutes per side
+  [3, 2], [5, 3], [10, 5], [15, 10], // older clients
 ];
 export const tcAllowed = (time, inc) => TIME_CONTROLS.some(([t, i]) => t === time && i === inc);
 

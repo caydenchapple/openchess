@@ -412,3 +412,7 @@ cg-board square.oc.premove-dest { background: radial-gradient(transparent 0%, tr
 .chip.level.locked { opacity: .5; cursor: not-allowed; border-style: dashed; }
 .chip.level.locked svg { vertical-align: -2px; }
 .banner.ladder { margin: .6rem 0; }
+
+/* setup drop-downs */
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .8rem; margin-top: 1rem; }
+.field { display: grid; gap: .25rem; } .field select { width: 100%; }

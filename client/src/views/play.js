@@ -4,12 +4,14 @@ import { LEVELS, GROUPS } from '../engine.js';
 import { icon } from '../icons.js';
 import { get, setName } from '../store.js';
 import { net, newCode, cleanCode, validCode } from '../net.js';
-import { session, loadActive, TC_LABEL, TC_NAME } from '../session.js';
+import { session, loadActive, TC_LABEL } from '../session.js';
 import { isProvisional } from '../rating.js';
 import { isUnlocked, unlockHint, suggestedLevel } from '../ladder.js';
 
-const ONLINE_TCS = [[1, 0], [3, 0], [3, 2], [5, 0], [5, 3], [10, 0], [10, 5], [15, 10]];
-const COMPUTER_TCS = [[0, 0], [3, 2], [5, 0], [10, 0], [15, 10], [30, 0]];
+// Clocks are just minutes per side (no increments), picked from a list
+const MINUTES = [1, 2, 3, 5, 10, 15, 30, 60];
+const CLOCK_OPTIONS = (untimed) => [...(untimed ? [[0, 'No clock']] : []), ...MINUTES.map((m) => [m, `${m} ${m === 1 ? 'minute' : 'minutes'} each`])];
+const COLOR_OPTIONS = [['random', 'Random'], ['w', 'White'], ['b', 'Black']];
 
 export function mount(root) {
   const st = get();
@@ -17,7 +19,7 @@ export function mount(root) {
   const prefs = { level: suggestedLevel(st).id, color: 'random', tc: [0, 0] };
   const offs = [];
   let waiting = null; let pendingJoin = null; let hostTries = 0;
-  const hostPrefs = { tc: [5, 0], color: 'random' };
+  const hostPrefs = { tc: [10, 0], color: 'random' };
 
   const resume = loadActive();
   const view = h('div', { class: 'stack' });
@@ -28,12 +30,11 @@ export function mount(root) {
     onchange: (e) => { setName(e.target.value); e.target.value = get().player.name; },
   });
 
-  function chips(list, current, onPick, label) {
-    return h('div', { class: 'opts' }, list.map((item) => {
-      const b = h('button', { class: 'chip', type: 'button', 'aria-pressed': String(current() === item.key) }, label(item));
-      b.addEventListener('click', () => { onPick(item); render(); });
-      return b;
-    }));
+  /** A labelled drop-down. `options` = [[value, text]]; `get`/`set` read and write the value. */
+  function dropdown(id, label, options, get, set) {
+    return h('div', { class: 'field' }, h('label', { for: id }, label),
+      h('select', { id, onchange: (e) => { set(e.target.value); } },
+        options.map(([v, t]) => h('option', { value: String(v), selected: String(get()) === String(v) }, t))));
   }
 
   function computerCard() {
@@ -57,10 +58,9 @@ export function mount(root) {
       h('div', { class: 'banner ladder' }, h('b', {}, `Your rating: ${mine}`), h('span', { class: 'muted small' }, ' — everyone starts at 100. Beat an opponent to open the next one; a win over someone far above you earns the most.')),
       groups,
       lv.person && h('div', { class: 'banner persona' }, h('b', {}, `${lv.name}${lv.person.born ? ` (b. ${lv.person.born})` : ''}`), h('p', { class: 'small' }, lv.person.note)),
-      h('label', { style: { marginTop: '1rem' } }, 'You play'),
-      chips([{ key: 'w', t: 'White' }, { key: 'random', t: 'Random' }, { key: 'b', t: 'Black' }], () => prefs.color, (i) => { prefs.color = i.key; }, (i) => i.t),
-      h('label', {}, 'Clock'),
-      chips(COMPUTER_TCS.map(([t, i]) => ({ key: `${t}+${i}`, t, i })), () => `${prefs.tc[0]}+${prefs.tc[1]}`, (i) => { prefs.tc = [i.t, i.i]; }, (i) => TC_LABEL(i.t, i.i)),
+      h('div', { class: 'fields' },
+        dropdown('cp-color', 'You play', COLOR_OPTIONS, () => prefs.color, (v) => { prefs.color = v; }),
+        dropdown('cp-clock', 'Clock', CLOCK_OPTIONS(true), () => prefs.tc[0], (v) => { prefs.tc = [Number(v), 0]; })),
       h('button', { class: 'primary big', onclick: resume ? twoStep('Click again to replace your unfinished game', startComputer) : startComputer }, icon('play'), ` Play ${lv.name}`));
   }
 
@@ -96,10 +96,8 @@ export function mount(root) {
       h('div', { class: 'two-up' },
         h('div', { class: 'stack' },
           h('h3', {}, 'Host a game'),
-          h('label', {}, 'Clock'),
-          chips(ONLINE_TCS.map(([t, i]) => ({ key: `${t}+${i}`, t, i })), () => `${hostPrefs.tc[0]}+${hostPrefs.tc[1]}`, (i) => { hostPrefs.tc = [i.t, i.i]; }, (i) => TC_LABEL(i.t, i.i)),
-          h('label', {}, 'You play'),
-          chips([{ key: 'w', t: 'White' }, { key: 'random', t: 'Random' }, { key: 'b', t: 'Black' }], () => hostPrefs.color, (i) => { hostPrefs.color = i.key; }, (i) => i.t),
+          dropdown('host-clock', 'Clock', CLOCK_OPTIONS(false), () => hostPrefs.tc[0], (v) => { hostPrefs.tc = [Number(v), 0]; }),
+          dropdown('host-color', 'You play', COLOR_OPTIONS, () => hostPrefs.color, (v) => { hostPrefs.color = v; }),
           h('button', { class: 'primary big', onclick: () => host(0) }, 'Create game code')),
         h('div', { class: 'stack' },
           h('h3', {}, 'Join a game'),
