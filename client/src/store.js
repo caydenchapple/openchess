@@ -18,6 +18,7 @@ const defaults = () => ({
   mistakes: [], // puzzles from your own blunders
   learn: emptyLearn(), // lesson progress, spaced-repetition boxes and the daily streak
   teach: { progress: null, tips: {} }, // tutorial kit state: which steps and tips were already shown
+  friends: { on: false, code: null, key: null, list: [] }, // friend code + secret (made when you first open Friends); list: { code, name, av, state: 'friend' | 'sent', added }
 });
 
 let state;
@@ -37,6 +38,7 @@ function load() {
         ratings: { ...d.ratings, ...raw.ratings },
         learn: { ...d.learn, ...(raw.learn ?? {}), streak: { ...d.learn.streak, ...(raw.learn?.streak ?? {}) } }, // older saves had a different shape
         settings: { ...d.settings, ...raw.settings },
+        friends: { ...d.friends, ...(raw.friends ?? {}), list: Array.isArray(raw.friends?.list) ? raw.friends.list : [] },
       };
     }
   } catch { /* corrupt or unavailable storage */ }
@@ -58,6 +60,24 @@ export function setName(name) {
 }
 export function setSetting(k, v) { state.settings[k] = v; save(); }
 export function setAvatar(avatar) { state.player.avatar = avatar; save(); }
+
+// ---- friends (see social.js). The code is public, the key is the secret that proves it is yours.
+const FRIEND_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const newFriendCode = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => FRIEND_ALPHABET[b % FRIEND_ALPHABET.length]).join('');
+export function friendIdentity({ fresh = false } = {}) {
+  const f = state.friends;
+  if (fresh || !f.code || !f.key) { f.code = newFriendCode(); f.key = uid(32); }
+  if (!f.on) f.on = true;
+  save();
+  return { code: f.code, key: f.key };
+}
+export const friendList = () => state.friends.list;
+export function setFriend(entry) {
+  const list = state.friends.list; const i = list.findIndex((x) => x.code === entry.code);
+  if (i >= 0) list[i] = { ...list[i], ...entry }; else list.push({ added: Date.now(), name: `Friend ${entry.code.slice(0, 4)}`, av: null, state: 'friend', ...entry });
+  save();
+}
+export function dropFriend(code) { state.friends.list = state.friends.list.filter((x) => x.code !== code); save(); }
 
 export function addGame(g) {
   state.games.unshift(g);

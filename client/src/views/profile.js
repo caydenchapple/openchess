@@ -20,8 +20,23 @@ export function mount(root) {
     h('div', { class: 'l' }, `${title(pool.r)} · ${pool.games} rated game${pool.games === 1 ? '' : 's'}${isProvisional(pool) ? ' · still settling' : ''}`),
     pool.history.length >= 2 ? sparkline(pool.history.slice(-40).map((x) => x.r)) : null);
 
+  const nameSlot = h('div', {});
+  const showName = () => {
+    clear(nameSlot);
+    nameSlot.append(h('div', { class: 'name-line' }, h('h1', { style: { margin: 0 } }, get().player.name),
+      h('button', { type: 'button', class: 'ghost small-btn', onclick: editName, 'aria-label': 'Change your name' }, icon('pencil', 16), 'Change name')), note());
+  };
+  const note = () => h('div', { class: 'muted small' }, 'Stored only in this browser — no account. Friends see this name.');
+  function editName() {
+    clear(nameSlot);
+    const input = h('input', { value: get().player.name, maxlength: 20, 'aria-label': 'Your name', class: 'name-edit', onkeydown: (e) => { if (e.key === 'Enter') save1(); if (e.key === 'Escape') showName(); } });
+    const save1 = () => { setName(input.value); toast('Name saved'); showName(); const pn = document.getElementById('pn'); if (pn) pn.value = get().player.name; };
+    nameSlot.append(h('div', { class: 'name-line' }, input, h('button', { class: 'primary', onclick: save1 }, 'Save'), h('button', { class: 'ghost', onclick: showName }, 'Cancel')), note());
+    input.focus(); input.select();
+  }
+  showName();
   const header = h('div', { class: 'row between' },
-    h('div', { class: 'who-big' }, avatarEl(st.player.avatar, 64, st.player.name), h('div', {}, h('h1', { style: { margin: 0 } }, st.player.name), h('div', { class: 'muted small' }, 'Stored only in this browser — no account.'))),
+    h('div', { class: 'who-big' }, avatarEl(st.player.avatar, 64, st.player.name), nameSlot),
     h('a', { class: 'btn primary', href: '#/play' }, 'Play'));
 
   view.append(header,

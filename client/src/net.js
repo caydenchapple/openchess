@@ -2,7 +2,7 @@
 import { get } from './store.js';
 
 /** Where rooms live: the same site (Node server) unless public/config.js points at a Cloudflare Worker. */
-function serverBase() {
+export function serverBase() {
   const cfg = typeof window !== 'undefined' ? window.OPENCHESS_SERVER : '';
   if (cfg) return cfg.replace(/\/$/, '');
   return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;

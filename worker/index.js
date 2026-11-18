@@ -1,6 +1,7 @@
 // Cloudflare Worker + Durable Object that runs OpenChess rooms, so online play works when the site itself is static (Cloudflare Pages).
 // One Durable Object per room code. Same Room/Game code as the Node server.
 import { Room, CODE_RE } from '../server/room.js';
+import { Mailbox, emptyData, FRIEND_RE } from '../server/friends.js';
 
 export class RoomDO {
   constructor(state, env) { this.state = state; this.env = env; this.room = null; }
@@ -36,6 +37,90 @@ export class RoomDO {
   }
 }
 
+/**
+ * One Durable Object per friend code: that player's mailbox (friend requests, challenges) and whether they are online.
+ * It uses WebSocket hibernation, so an idle open tab costs nothing; the mailbox is saved to storage after every change.
+ */
+export class InboxDO {
+  constructor(state, env) {
+    this.state = state; this.env = env;
+    this.code = null; this.loaded = null; this.box = null; this.wrapped = new WeakMap();
+    state.setWebSocketAutoResponse(new WebSocketRequestResponsePair('{"t":"ping"}', '{"t":"pong"}'));
+    state.blockConcurrencyWhile(async () => { const m = await state.storage.get('m'); if (m) { this.code = m.code; this.loaded = m.data; } });
+  }
+
+  #mailbox() {
+    if (!this.box) {
+      const stub = (code) => this.env.INBOX.get(this.env.INBOX.idFromName(code));
+      const call = async (code, path, body) => (await stub(code).fetch(`https://inbox${path}`, { method: 'POST', body: JSON.stringify(body) })).json();
+      this.box = new Mailbox(this.code, this.loaded ?? emptyData(), {
+        conns: () => this.state.getWebSockets().map((ws) => this.#wrap(ws)),
+        hub: {
+          deliver: async (code, ev) => (await call(code, '/deliver', { code, ev })).result,
+          probe: async (code, asker) => (await call(code, '/probe', { code, asker })).peek,
+        },
+        save: (data) => this.state.storage.put('m', { code: this.code, data }),
+      });
+    }
+    return this.box;
+  }
+
+  /** A connection as the mailbox sees it; what must survive hibernation lives in the socket's attachment. */
+  #wrap(ws) {
+    let c = this.wrapped.get(ws);
+    if (c) return c;
+    const att = ws.deserializeAttachment() ?? {};
+    const keep = () => { try { ws.serializeAttachment({ authed: c.authed, name: c.name, av: c.av }); } catch { /* closed */ } };
+    c = {
+      send: (m) => { try { ws.send(JSON.stringify(m)); } catch { /* socket closed */ } },
+      name: att.name ?? null, av: att.av ?? null, _authed: !!att.authed, win: 0, n: 0,
+      get authed() { return this._authed; },
+      set authed(v) { this._authed = v; keep(); },
+      set(p) { this.name = p.name; this.av = p.av; keep(); },
+    };
+    this.wrapped.set(ws, c);
+    return c;
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    if (request.method === 'POST' && url.pathname === '/deliver') {
+      const { ev } = await request.json();
+      const result = this.code ? await this.#mailbox().receive(ev) : 'unknown';
+      return Response.json({ result });
+    }
+    if (request.method === 'POST' && url.pathname === '/probe') {
+      const { asker } = await request.json();
+      return Response.json({ peek: this.code ? this.#mailbox().peek(asker) : null });
+    }
+    if (request.headers.get('Upgrade') !== 'websocket') return new Response('Expected a WebSocket', { status: 426 });
+    const code = url.pathname.split('/').pop().toUpperCase();
+    if (!FRIEND_RE.test(code)) return new Response('Bad friend code', { status: 400 });
+    if (!this.code) this.code = code;
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair);
+    this.state.acceptWebSocket(server);
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async webSocketMessage(ws, data) {
+    if (typeof data !== 'string' || data.length > 4096) return;
+    const c = this.#wrap(ws);
+    const now = Date.now();
+    if (now - c.win > 1000) { c.win = now; c.n = 0; }
+    if (++c.n > 20) return;
+    let msg; try { msg = JSON.parse(data); } catch { return; }
+    if (!msg || typeof msg.t !== 'string') return;
+    const box = this.#mailbox();
+    try {
+      const err = msg.t === 'hello' ? (c.authed ? null : await box.hello(c, msg)) : await box.message(c, msg);
+      if (err) c.send({ t: 'error', message: err, ...(err === 'taken' ? { taken: true } : {}) });
+    } catch { c.send({ t: 'error', message: 'Something went wrong. Try again.' }); }
+  }
+
+  webSocketClose(ws) { try { ws.close(); } catch { /* already closed */ } }
+}
+
 const originAllowed = (origin, env) => {
   if (!origin) return true;
   try {
@@ -48,6 +133,13 @@ const originAllowed = (origin, env) => {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const f = url.pathname.match(/^\/friends\/([A-Za-z0-9]{8})$/);
+    if (f) {
+      const code = f[1].toUpperCase();
+      if (!FRIEND_RE.test(code)) return new Response('Bad friend code', { status: 400 });
+      if (!originAllowed(request.headers.get('Origin'), env)) return new Response('Origin not allowed', { status: 403 });
+      return env.INBOX.get(env.INBOX.idFromName(code)).fetch(request);
+    }
     const m = url.pathname.match(/^\/ws\/([A-Za-z0-9]+)$/);
     if (!m) return new Response('OpenChess rooms. Connect with a WebSocket to /ws/<CODE>.', { status: 200, headers: { 'content-type': 'text/plain' } });
     const code = m[1].toUpperCase();

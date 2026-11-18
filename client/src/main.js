@@ -8,6 +8,7 @@ import { session } from './session.js';
 import { teaching } from './teaching.js';
 import { avatarEl } from './avatars.js';
 import { syncBackdrop } from './backdrop.js';
+import { social, mountInvites } from './social.js';
 
 document.documentElement.dataset.theme = get().settings.theme === 'light' ? 'light' : 'dark';
 document.documentElement.dataset.board = get().settings.board ?? 'green';
@@ -21,6 +22,7 @@ const routes = {
   review: { load: () => import('./views/review.js'), nav: 'history', wide: true },
   history: { load: () => import('./views/history.js'), nav: 'history' },
   learn: { load: () => import('./views/learn.js'), nav: 'learn', wide: true },
+  friends: { load: () => import('./views/friends.js'), nav: 'friends' },
   train: { load: () => import('./views/train.js'), nav: 'learn', wide: true },
   profile: { load: () => import('./views/profile.js'), nav: 'profile' },
   about: { load: () => ({ mount: home.mountAbout }), nav: '' },
@@ -102,3 +104,13 @@ function updateMe() {
 updateMe();
 subscribe(updateMe);
 document.addEventListener('openchess:avatar', updateMe);
+
+// friends: once you have opened Friends, stay connected so requests and challenges reach you wherever you are
+function updateBadge() {
+  const el = $('#friends-badge'); if (!el) return;
+  const n = social.badge; el.hidden = !n; el.textContent = String(n);
+}
+social.onChange(updateBadge);
+mountInvites();
+social.start();
+updateBadge();

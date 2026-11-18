@@ -6,9 +6,17 @@ compatibility_date = "2026-11-01"
 name = "ROOMS"
 class_name = "RoomDO"
 
+[[durable_objects.bindings]]
+name = "INBOX"
+class_name = "InboxDO"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["RoomDO"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["InboxDO"]
 
 [vars]
 # extra origins (besides *.pages.dev and localhost) that may open room connections, comma separated

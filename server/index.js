@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Room, CODE_RE } from './room.js';
 import { TIME_CONTROLS } from './game.js';
+import { Hub, FRIEND_RE } from './friends.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -53,7 +54,7 @@ export function createApp({ rooms = new Rooms() } = {}) {
   return app;
 }
 
-export function attachWebSocket(server, rooms) {
+export function attachWebSocket(server, rooms, hub = new Hub()) {
   const wss = new WebSocketServer({ server, maxPayload: 4096 });
   const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
 
@@ -65,6 +66,8 @@ export function attachWebSocket(server, rooms) {
       if (!ok) return ws.close(1008, 'origin not allowed');
     }
     const url = new URL(req.url, 'http://x');
+    const fm = url.pathname.match(/^\/friends\/([A-Za-z0-9]+)$/);
+    if (fm) return friendSocket(ws, hub, fm[1].toUpperCase());
     const m = url.pathname.match(/^\/ws\/([A-Za-z0-9]+)$/);
     const code = m?.[1]?.toUpperCase();
     if (!code || !CODE_RE.test(code)) return ws.close(1008, 'bad room code');
@@ -94,6 +97,30 @@ export function attachWebSocket(server, rooms) {
     ws.on('error', () => ws.terminate());
   });
   return wss;
+}
+
+/** One browser's connection to its friends mailbox (/friends/<friend code>). */
+function friendSocket(ws, hub, code) {
+  if (!FRIEND_RE.test(code)) return ws.close(1008, 'bad friend code');
+  const box = hub.box(code);
+  const send = (msg) => { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); };
+  const conn = { send, authed: false, name: null, av: null, set(p) { this.name = p.name; this.av = p.av; } };
+  box.live.add(conn);
+  let budget = 20;
+  const refill = setInterval(() => { budget = 20; }, 1000);
+  ws.on('message', async (data) => {
+    if (--budget < 0) return;
+    let msg; try { msg = JSON.parse(data.toString()); } catch { return; }
+    if (!msg || typeof msg.t !== 'string') return;
+    if (msg.t === 'ping') return send({ t: 'pong' });
+    try {
+      const err = msg.t === 'hello' ? (conn.authed ? null : await box.hello(conn, msg)) : await box.message(conn, msg);
+      if (err) send({ t: 'error', message: err, ...(err === 'taken' ? { taken: true } : {}) });
+    } catch (e) { send({ t: 'error', message: 'Something went wrong. Try again.' }); }
+  });
+  const gone = () => { clearInterval(refill); box.live.delete(conn); if (!box.claimed && !box.live.size) hub.boxes.delete(code); };
+  ws.on('close', gone);
+  ws.on('error', () => ws.terminate());
 }
 
 // Only start listening when run directly (so tests can import createApp).

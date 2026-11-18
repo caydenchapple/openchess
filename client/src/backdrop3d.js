@@ -1,4 +1,4 @@
-// The living background: 3D chess pieces that fall, bounce off the screen edges and drift around behind the page.
+// The living background: a steady rain of 3D chess pieces that fall past the page, bounce off the side edges and tumble out of the bottom while new ones drop in from the top.
 // You can pick one up with the mouse (or a finger), drag it and throw it. Pieces behind a card, a button or a link are not touched,
 // so the page works exactly as before. Loaded on demand with three.js; it switches itself off for reduced motion.
 import { WebGLRenderer, Scene, PerspectiveCamera, Group, HemisphereLight, DirectionalLight, MathUtils } from 'three';
@@ -7,7 +7,7 @@ import { makePiece, disposeGroup } from './pieces3d.js';
 const TYPES = ['k', 'q', 'r', 'b', 'n', 'p', 'p', 'n', 'b', 'r', 'q', 'p', 'n', 'b', 'r', 'k', 'p', 'p'];
 const HEIGHT = { p: 0.75, r: 0.9, n: 0.95, b: 1.2, q: 1.4, k: 1.55 };
 const COLORS = ['w', 'w', 'w', 0x5c5a54, 0x5c5a54, 0x84c24f, 0x84c24f, 0xe0b350]; // the dark ones are charcoal so they show on a dark page
-const GRAVITY = 8; const WALL_BOUNCE = 0.8; const FLOOR_BOUNCE = 0.62; const AIR = 0.12;
+const GRAVITY = 6; const WALL_BOUNCE = 0.8; const AIR = 0.12; const FALL_MAX = 6.5; // no floor: pieces keep falling, at most this fast (world units per second)
 const CAM_Z = 26; const FOV = 35;
 
 /** True when nothing opaque (a card, button, link, image, the header...) sits between this element and the page background. */
@@ -35,7 +35,7 @@ export function createBackdrop() {
 
   let halfW = 8; let halfH = 8; let S = 1.15; let width = 0;
   const bits = []; // { pv, x, y, vx, vy, r, rot, spin, yaw, yawSpin, grabbed }
-  const maxBits = () => (innerWidth < 700 ? 8 : 14);
+  const maxBits = () => (innerWidth < 700 ? 9 : 16); // how many are in the air at once
 
   const resize = () => {
     const w = innerWidth; const h = innerHeight; if (!w || !h) return;
@@ -60,12 +60,17 @@ export function createBackdrop() {
     bits.push(b); return b;
   }
 
-  let spawned = 0; let nextSpawn = 0; let nextKick = 0;
+  let nextSpawn = 0; let nextKick = 0; let primed = false;
   let last = performance.now(); let raf = 0; let running = false; let drag = null;
 
   function step(dt) {
     const now = performance.now();
-    if (spawned < maxBits() && now > nextSpawn) { spawn(); spawned++; nextSpawn = now + 220; }
+    if (!primed) { // the first screen is already full: pieces mid-fall at every height
+      primed = true;
+      for (let i = 0; i < maxBits() * 0.6; i++) { const b = spawn(false); b.y = halfH - Math.random() * halfH * 2; b.vy = -Math.random() * FALL_MAX; }
+    }
+    // a new piece drops in from the top whenever there are fewer than the target, so the rain never thins out
+    if (bits.length < maxBits() && now > nextSpawn) { spawn(); nextSpawn = now + 260 + Math.random() * 380; }
     if (now > nextKick && bits.length > 3) { // every few seconds one piece hops up and spins, so the screen never goes still
       const b = bits[(Math.random() * bits.length) | 0];
       if (!b.grabbed) { b.vy = 5 + Math.random() * 5; b.vx += (Math.random() - 0.5) * 6; b.spin += (Math.random() - 0.5) * 6; }
@@ -77,12 +82,15 @@ export function createBackdrop() {
         b.vx = MathUtils.clamp((tx - b.x) * 22, -45, 45); b.vy = MathUtils.clamp((ty - b.y) * 22, -45, 45);
         b.x += b.vx * dt; b.y += b.vy * dt; b.spin *= 0.9; continue;
       }
-      b.vy -= GRAVITY * dt; const damp = 1 - AIR * dt; b.vx *= damp; b.vy *= damp;
-      b.x += b.vx * dt; b.y += b.vy * dt;
+      b.vy = Math.max(-FALL_MAX, b.vy - GRAVITY * dt); const damp = 1 - AIR * dt; b.vx *= damp; b.vy *= damp;      b.x += b.vx * dt; b.y += b.vy * dt;
       if (b.x < -halfW + b.r) { b.x = -halfW + b.r; b.vx = Math.abs(b.vx) * WALL_BOUNCE; b.spin += b.vy * 0.05; }
       if (b.x > halfW - b.r) { b.x = halfW - b.r; b.vx = -Math.abs(b.vx) * WALL_BOUNCE; b.spin -= b.vy * 0.05; }
-      if (b.y < -halfH + b.r) { b.y = -halfH + b.r; b.vy = Math.abs(b.vy) * FLOOR_BOUNCE; if (b.vy < 1.2) b.vy = 0; b.vx *= 0.985; b.spin += b.vx * 0.12; }
       if (b.y > halfH + 12) { b.y = halfH + 12; b.vy = -Math.abs(b.vy); }
+    }
+    // pieces that have fallen out of sight are removed (their slot is refilled from the top above)
+    for (let i = bits.length - 1; i >= 0; i--) {
+      const b = bits[i];
+      if (!b.grabbed && b.y < -halfH - 2.5) { scene.remove(b.pv); disposeGroup(b.pv); bits.splice(i, 1); }
     }
     // pieces bump into each other
     for (let i = 0; i < bits.length; i++) for (let j = i + 1; j < bits.length; j++) {

@@ -93,6 +93,7 @@ export function mount(root) {
     return h('section', { class: 'card setup' },
       h('h2', {}, 'Play a friend online'),
       h('p', { class: 'muted small' }, `Free, no sign-up. One of you hosts a game and shares the code; the other types it in. Your online rating: ${r.r}${isProvisional(r) ? ' (still settling)' : ''}.`),
+      h('p', { class: 'small' }, 'Playing someone regularly? ', h('a', { href: '#/friends' }, 'Add them as a friend'), ' and challenge them in one tap.'),
       h('div', { class: 'two-up' },
         h('div', { class: 'stack' },
           h('h3', {}, 'Host a game'),
