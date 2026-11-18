@@ -7,13 +7,13 @@ export const START_RATING = 100; // everyone starts at the bottom and works up
 const MAX_GAMES = 150;
 
 const defaults = () => ({
-  player: { id: uid(16), name: `Guest${Math.floor(1000 + Math.random() * 9000)}` },
+  player: { id: uid(16), name: `Guest${Math.floor(1000 + Math.random() * 9000)}`, avatar: null }, // avatar: null = the default picture; see avatars.js
   ratings: {
     computer: { r: START_RATING, games: 0, history: [] },
     online: { r: START_RATING, games: 0, history: [] },
   },
   ladder: { beaten: {} }, // computer opponents you have beaten (by level id); opens the next one up
-  settings: { sound: true, theme: 'dark', autoReview: false, board: 'green', unlockAll: false },
+  settings: { sound: true, theme: 'dark', autoReview: false, board: 'green', unlockAll: false, floatingPieces: true },
   games: [], // newest first
   mistakes: [], // puzzles from your own blunders
   learn: emptyLearn(), // lesson progress, spaced-repetition boxes and the daily streak
@@ -57,6 +57,7 @@ export function setName(name) {
   save();
 }
 export function setSetting(k, v) { state.settings[k] = v; save(); }
+export function setAvatar(avatar) { state.player.avatar = avatar; save(); }
 
 export function addGame(g) {
   state.games.unshift(g);

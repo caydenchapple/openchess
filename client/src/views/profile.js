@@ -1,10 +1,12 @@
 // Skill profile: ratings, trends, weak spots, training plan, and settings. Everything is local.
 import { h, clear, toast, round, twoStep } from '../util.js';
-import { get, save, setName, setSetting, exportData, importData, wipe } from '../store.js';
+import { get, save, setName, setSetting, setAvatar, exportData, importData, wipe } from '../store.js';
+import { avatarEl, paintAvatar, PRESETS, shrinkImage, DEFAULT_AVATAR } from '../avatars.js';
 import { aggregate, sparkline } from '../stats.js';
 import { isProvisional, title } from '../rating.js';
 import { THEME_LABELS, THEME_ADVICE } from '../analysis-core.js';
 import { trainingPlan, openingAdvice } from '../coach.js';
+import { icon } from '../icons.js';
 
 export function mount(root) {
   const st = get();
@@ -19,7 +21,7 @@ export function mount(root) {
     pool.history.length >= 2 ? sparkline(pool.history.slice(-40).map((x) => x.r)) : null);
 
   const header = h('div', { class: 'row between' },
-    h('div', {}, h('h1', { style: { margin: 0 } }, st.player.name), h('div', { class: 'muted small' }, 'Stored only in this browser — no account.')),
+    h('div', { class: 'who-big' }, avatarEl(st.player.avatar, 64, st.player.name), h('div', {}, h('h1', { style: { margin: 0 } }, st.player.name), h('div', { class: 'muted small' }, 'Stored only in this browser — no account.'))),
     h('a', { class: 'btn primary', href: '#/play' }, 'Play'));
 
   view.append(header,
@@ -38,7 +40,7 @@ export function mount(root) {
   } else {
     view.append(statsCard(agg), weakSpots(agg), openingsCard(agg), planCard(agg));
   }
-  view.append(settingsCard());
+  view.append(pictureCard(), settingsCard());
 
   function statsCard(a) {
     const bar = (label, v) => h('div', { class: 'bar' }, h('span', {}, label), h('div', {}, h('i', { style: { width: `${v ?? 0}%` } })), h('span', { class: 'muted' }, v == null ? '–' : v));
@@ -89,6 +91,37 @@ export function mount(root) {
       h('p', { class: 'ai-note' }, 'Built from your own stats by the rule-based coach, and it updates as you review more games.'));
   }
 
+  function pictureCard() {
+    const cur = () => get().player.avatar ?? DEFAULT_AVATAR;
+    const preview = avatarEl(cur(), 96, get().player.name);
+    const msg = h('p', { class: 'small muted', role: 'status' }, 'Pick one, or upload your own. Your picture stays in this browser.');
+    const grid = h('div', { class: 'avatar-grid', role: 'radiogroup', 'aria-label': 'Profile picture' });
+    const refresh = () => {
+      paintAvatar(preview, cur(), get().player.name);
+      grid.querySelectorAll('button').forEach((b) => b.setAttribute('aria-checked', String(cur().kind === 'preset' && cur().id === b.dataset.id)));
+      removeBtn.hidden = cur().kind !== 'custom';
+      document.dispatchEvent(new Event('openchess:avatar'));
+    };
+    PRESETS.forEach((p) => {
+      const b = h('button', { type: 'button', class: 'avatar-opt', role: 'radio', 'aria-label': `Picture ${p.id}`, dataset: { id: p.id }, onclick: () => { setAvatar({ kind: 'preset', id: p.id }); refresh(); } });
+      b.append(avatarEl({ kind: 'preset', id: p.id }, 56));
+      grid.append(b);
+    });
+    const removeBtn = h('button', { type: 'button', class: 'ghost', onclick: () => { setAvatar(null); refresh(); toast('Back to a ready-made picture'); } }, 'Remove my photo');
+    const file = h('input', { type: 'file', accept: 'image/*', hidden: true, onchange: async (e) => {
+      const f = e.target.files?.[0]; e.target.value = '';
+      if (!f) return;
+      try { setAvatar({ kind: 'custom', src: await shrinkImage(f) }); refresh(); toast('Picture saved'); } catch (err) { msg.textContent = err.message; }
+    } });
+    const card = h('div', { class: 'card stack' }, h('h2', {}, 'Profile picture'),
+      h('div', { class: 'pic-row' }, preview,
+        h('div', { class: 'stack' }, msg, h('div', { class: 'controls', style: { marginTop: 0 } },
+          h('label', { class: 'btn', style: { margin: 0 } }, icon('upload', 16), 'Upload your own', file), removeBtn))),
+      grid);
+    refresh();
+    return card;
+  }
+
   function settingsCard() {
     const s = get().settings;
     const nameIn = h('input', { value: get().player.name, maxlength: 20, id: 'pn', onchange: (e) => { setName(e.target.value); toast('Name saved'); } });
@@ -97,6 +130,7 @@ export function mount(root) {
     return h('div', { class: 'card stack' }, h('h2', {}, 'Settings'),
       h('div', {}, h('label', { for: 'pn' }, 'Display name'), nameIn),
       check('Sound effects', 'sound'),
+      check('Floating chess pieces in the background', 'floatingPieces', () => document.dispatchEvent(new Event('openchess:backdrop'))),
       check('Light theme', 'theme', (on) => { setSetting('theme', on ? 'light' : 'dark'); document.documentElement.dataset.theme = on ? 'light' : 'dark'; }),
       check('Open the review as soon as a game ends', 'autoReview'),
       check('Unlock every opponent (skip the ladder)', 'unlockAll'),

@@ -6,6 +6,8 @@ import { currentStreak, dayKey } from './lessons-logic.js';
 import { icon } from './icons.js';
 import { session } from './session.js';
 import { teaching } from './teaching.js';
+import { avatarEl } from './avatars.js';
+import { syncBackdrop } from './backdrop.js';
 
 document.documentElement.dataset.theme = get().settings.theme === 'light' ? 'light' : 'dark';
 document.documentElement.dataset.board = get().settings.board ?? 'green';
@@ -24,7 +26,8 @@ const routes = {
   about: { load: () => ({ mount: home.mountAbout }), nav: '' },
 };
 
-let cleanup = null; let navToken = 0;
+let cleanup = null; let navToken = 0; let here = { key: '', params: [] };
+document.addEventListener('openchess:backdrop', () => syncBackdrop(here.key, here.params));
 const app = $('#app');
 
 async function route() {
@@ -38,6 +41,7 @@ async function route() {
   const r = routes[key] ?? routes[''];
   document.querySelectorAll('[data-nav]').forEach((a) => a.classList.toggle('active', a.dataset.nav === r.nav));
   app.classList.toggle('wide', !!r.wide); // game, review and training use the whole screen
+  here = { key, params }; syncBackdrop(key, params);
 
   if (key === 'join') { joinInvite(params[0]); return; }
   try {
@@ -87,3 +91,14 @@ function updateStreak() {
 updateStreak();
 window.addEventListener('hashchange', updateStreak);
 subscribe(updateStreak);
+
+// your picture in the header
+function updateMe() {
+  const el = $('#me-chip'); if (!el) return;
+  const p = get().player;
+  el.replaceChildren(avatarEl(p.avatar, 32, p.name));
+  el.title = `${p.name} — my profile`;
+}
+updateMe();
+subscribe(updateMe);
+document.addEventListener('openchess:avatar', updateMe);

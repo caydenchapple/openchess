@@ -35,9 +35,9 @@ export function mount(root) {
         lastReviewable && h('p', { class: 'small-links' }, h('a', { href: '#/history' }, 'See my games'))),
       scene),
     h('section', { class: 'points' },
-      point(icon('play', 40), 'Easy to start', 'Play against the computer. Click a piece, then click where it should go.'),
-      point(icon('bulb', 40), 'Learn as you play', 'When a game ends, you see your mistakes and simple tips to do better next time.'),
-      point(icon('check', 40), 'Free for everyone', 'No account, no ads, no payments. Your games stay on your device.'))));
+      point(icon('hand', 26), 'Easy to start', 'Play against the computer. Click a piece, then click where it should go.'),
+      point(icon('cap', 26), 'Learn as you play', 'When a game ends, you see your mistakes and simple tips to do better next time.'),
+      point(icon('heart', 26), 'Free for everyone', 'No account, no ads, no payments. Your games stay on your device.'))));
 
   const b = new Board(boardEl, { orientation: 'w' });
   b.setPosition(DEMO_FEN, { lastMove: ['d2', 'd3'] });

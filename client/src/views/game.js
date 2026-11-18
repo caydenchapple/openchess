@@ -11,6 +11,7 @@ import { markBeaten } from '../ladder.js';
 import { play } from '../sound.js';
 import { teaching } from '../teaching.js';
 import { icon } from '../icons.js';
+import { avatarEl, paintAvatar, botAvatar } from '../avatars.js';
 import { session, saveActive, loadActive, clearActive, TC_LABEL } from '../session.js';
 
 const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 };
@@ -78,6 +79,7 @@ export function mount(root) {
     dom.boardcol = null;
     dom.oppName = h('span', { class: 'name' }); dom.oppRating = h('span', { class: 'rating' }); dom.oppStatus = h('span', { class: 'status' });
     dom.meName = h('span', { class: 'name' }); dom.meRating = h('span', { class: 'rating' });
+    dom.oppAv = avatarEl(null, 40); dom.meAv = avatarEl(null, 40);
     dom.oppClock = h('div', { class: 'clock' }); dom.meClock = h('div', { class: 'clock' });
     dom.oppCap = h('div', { class: 'captured' }); dom.meCap = h('div', { class: 'captured' });
     dom.boardEl = h('div', { class: 'boardwrap' });
@@ -90,9 +92,9 @@ export function mount(root) {
     dom.result = h('div', { class: 'stack' });
     root.append(h('div', { class: 'game' },
       (dom.boardcol = h('div', { class: 'boardcol' },
-        h('div', { class: 'pbar' }, h('div', {}, h('div', { class: 'who' }, dom.oppName, dom.oppRating, dom.oppStatus), dom.oppCap), dom.oppClock),
+        h('div', { class: 'pbar' }, h('div', { class: 'pl' }, dom.oppAv, h('div', {}, h('div', { class: 'who' }, dom.oppName, dom.oppRating, dom.oppStatus), dom.oppCap)), dom.oppClock),
         dom.boardEl,
-        h('div', { class: 'pbar' }, h('div', {}, h('div', { class: 'who' }, dom.meName, dom.meRating), dom.meCap), dom.meClock))),
+        h('div', { class: 'pbar' }, h('div', { class: 'pl' }, dom.meAv, h('div', {}, h('div', { class: 'who' }, dom.meName, dom.meRating), dom.meCap)), dom.meClock))),
       h('div', { class: 'side stack' },
         h('div', { class: 'card' }, dom.status, dom.controls, h('div', { style: { marginTop: '.8rem' } }, dom.nav, dom.moves)),
         dom.result)));
@@ -354,8 +356,10 @@ export function mount(root) {
   // ---------- rendering ----------
   function renderAll() {
     dom.meName.textContent = G.me.name;
+    paintAvatar(dom.meAv, get().player.avatar, G.me.name);
     dom.meRating.textContent = `(${G.me.rating})`;
     dom.oppName.textContent = G.opp.name;
+    paintAvatar(dom.oppAv, G.mode === 'computer' ? botAvatar(G.level) : { kind: 'initial' }, G.opp.name);
     dom.oppRating.textContent = `(${G.opp.rating})`;
     const { adv, caps } = materialDiff(chess.fen());
     const meAdv = G.color === 'w' ? adv : -adv;

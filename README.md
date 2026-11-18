@@ -12,6 +12,7 @@ Free, open-source chess. **No sign-up, no ads, no paywall, no AI services or API
 - 📚 **Learn** — a ten-lesson course you can open at any point (cards with a board, then exercises with instant feedback), plus a daily session built from your ratings, your reviewed games and how you solve exercises, at a difficulty you should solve about 3 times in 4, with spaced repetition and a daily streak
 - ▶ **Play through your game** — autoplay, step with the arrow keys, click the computer's line move by move, and "Try it yourself" to find the better move and get Stockfish's verdict
 - 🧭 **Light-touch teaching** — a controls card, one-time tips, a 3-step coach walk-through of your first review, and a "?" how-to-play panel (plan in [docs/GAME_BRIEF.md](docs/GAME_BRIEF.md))
+- 🖼️ **Profile pictures** — 24 ready-made ones or your own photo (shrunk and kept in this browser), and a 3D background of chess pieces you can pick up and throw (switch it off in Settings)
 - 🧩 **Train on your own mistakes** — every blunder becomes a puzzle
 - 🔒 **Private** — games, ratings and settings live in your browser's `localStorage`
 
