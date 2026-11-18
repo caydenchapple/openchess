@@ -26,7 +26,7 @@ function findEx(id, kind, item, text) {
 
 const TEXT = {
   free: {
-    prompt: (i) => `${side(i.fen)} to move. One enemy piece is not protected by anything. Take it!`,
+    prompt: (i) => `${side(i.fen)} to move. One enemy piece is not protected by anything. Take it.`,
     hint: 'Look for a piece with no defender. Take it with the piece that can do so safely.',
     explain: (i) => `${i.san} wins a free ${i.piece}: nothing can take back.`,
   },
@@ -41,14 +41,14 @@ const TEXT = {
     explain: (i) => `${i.san} checks along a line. The king has to move, and the ${i.target} behind it falls to the ${i.slider}.`,
   },
   pins: {
-    prompt: (i) => `${side(i.fen)} to move. The knight is pinned to its king. Win it!`,
+    prompt: (i) => `${side(i.fen)} to move. The knight is pinned to its king. Win it.`,
     hint: 'A pinned piece cannot move. Attack it with something small, like a pawn.',
     explain: (i) => `${i.san} attacks the pinned knight with a pawn. The knight cannot run away: moving would expose its king to the ${i.slider}.`,
   },
   mate2: {
     prompt: (i) => `${side(i.fen)} to move. Find the move that forces checkmate on your NEXT move.`,
     hint: 'Look at checks first. Which move takes away the king\'s last squares?',
-    explain: (i) => `${i.san}! Whatever Black replies, White has checkmate on the next move.`,
+    explain: (i) => `${i.san} forces mate: whatever Black replies, White has checkmate on the next move.`,
   },
   kp: {
     prompt: (i) => `${side(i.fen)} to move. Only one move keeps the win. Find it.`,

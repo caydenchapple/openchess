@@ -9,7 +9,7 @@ Free, open-source chess. **No sign-up, no ads, no paywall, no AI services or API
 - 🪜 **Start at 100 and climb** — everyone begins at a rating of 100. Opponents open up as you beat the one below them (or get close to their rating), with a rung for every level from beginner to Stockfish
 - 📊 **Post-game review** — every move rated like Chess.com (Brilliant !!, Great !, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder) with a plain-language note on each, accuracy by phase, evaluation graph, opening detection, estimated performance rating
 - 🎓 **Built-in coach** (plain code, no AI model) — game summary, strengths, three personal lessons with drills, an explanation of each key mistake, opening notes, "position insight", and a training plan
-- 📚 **Training that fits you** — you don't pick lessons. Each session is built from your ratings, your reviewed games and how you solve exercises, at a difficulty you should solve about 3 times in 4, with spaced repetition and a daily streak
+- 📚 **Learn** — a ten-lesson course you can open at any point (cards with a board, then exercises with instant feedback), plus a daily session built from your ratings, your reviewed games and how you solve exercises, at a difficulty you should solve about 3 times in 4, with spaced repetition and a daily streak
 - ▶ **Play through your game** — autoplay, step with the arrow keys, click the computer's line move by move, and "Try it yourself" to find the better move and get Stockfish's verdict
 - 🧭 **Light-touch teaching** — a controls card, one-time tips, a 3-step coach walk-through of your first review, and a "?" how-to-play panel (plan in [docs/GAME_BRIEF.md](docs/GAME_BRIEF.md))
 - 🧩 **Train on your own mistakes** — every blunder becomes a puzzle
@@ -75,7 +75,7 @@ just a random id + display name from the browser. There is no chat (nothing to m
 ## Training
 
 `client/src/lessons-data.js` holds the topics (short lessons plus exercises), `lessons-logic.js` the player model, and `views/learn.js` the screens.
-There is no lesson menu: `planSession` builds each session. Every topic has a skill rating for you and every exercise a difficulty on the same
+The Learn screen lists the course, and `planSession` builds the daily session. Every topic has a skill rating for you and every exercise a difficulty on the same
 Elo-like scale; sessions pick exercises you should solve about 3 times in 4, steer toward the mistakes found in your reviewed games
 (hung pieces → free pieces, missed tactics → forks/skewers/pins, …), bring missed exercises back after 1/3/7/14/30 days, and show a short lesson
 only the first time a topic comes up (never for things far below your level). Exercises with one best answer were generated and checked with
