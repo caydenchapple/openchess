@@ -4,11 +4,11 @@ import { Chess } from 'chess.js';
 import { LEVELS, GROUPS, chooseMove, strengthOf } from '../client/src/levels.js';
 import { FISCHER_BOOK, bookMove, styleBonus, fischerMove } from '../client/src/fischer.js';
 
-test('levels: unique ids, known groups, Elo rises with the id, named legends carry a note', () => {
+test('levels: unique ids, known groups, the list is sorted by Elo, named legends carry a note', () => {
   const groups = new Set(GROUPS.map((g) => g.id));
   assert.equal(new Set(LEVELS.map((l) => l.id)).size, LEVELS.length);
   for (const l of LEVELS) { assert.ok(groups.has(l.group), l.name); assert.ok(l.nodes > 0, l.name); }
-  const ladder = LEVELS.filter((l) => l.group !== 'famous').sort((a, b) => a.id - b.id);
+  const ladder = LEVELS.filter((l) => l.group !== 'famous'); // already in Elo order: the UI lists them as they are
   for (let i = 1; i < ladder.length; i++) assert.ok(ladder[i].elo > ladder[i - 1].elo, `${ladder[i].name} should be stronger than ${ladder[i - 1].name}`);
   for (const l of LEVELS.filter((x) => x.group === 'legend' || x.group === 'famous')) assert.ok(l.person?.note, l.name);
   assert.ok(LEVELS.filter((l) => l.group === 'legend').length >= 6);

@@ -1,0 +1,18 @@
+827 sides (>= 10 moves) from 1 depth setting(s)
+level elo   sides  moves  ACPL mean (sd)   accuracy   best%  inacc%  mistake%  blunder%
+p30     -     32     57    72.5 (25.7)       72.9     35       7        4         5   old random-mix 30%
+p10     -     24     42    60.5 (24.8)       81.8     42       5        4         3   old random-mix 10%
+p90     -     23     55   201.1 (90.7)       45.5     13      12       10        25   old random-mix 90%
+p50     -     31     51   109.5 (53.0)       62.3     31       8        4        11   old random-mix 50%
+ 20   125     36     46   381.1 (101.5)       22.5      3       9       10        61   First steps
+  1   350     63     67   249.0 (112.7)       41.5      7      12       10        32   Rookie
+ 25   700     64     56   117.2 (53.2)       63.6     18      10        5         9   Hopeful Queen
+  3  1000     64     59    94.6 (30.7)       71.4     20       9        5         6   Learner
+  4  1175     62     55    73.8 (26.5)       78.1     24       9        6         5   Student
+  6  1475     63     56    64.7 (27.2)       83.3     28       9        5         3   Club player
+  7  1575     61     55    57.5 (21.6)       85.5     31       8        4         2   Strong club
+  8  1775     64     53    57.3 (17.3)       85.3     34       8        5         3   Expert
+  9  2000     64     50    45.7 (15.4)       89.9     45       6        3         2   Candidate
+ 10  2200     64     49    33.4 (12.0)       93.0     55       4        2         1   Master
+ 12  2690     64     56    15.2 (8.4)       97.3     76       2        0         0   Boris Spassky
+ 17  2882     48     69    16.7 (9.6)       97.7     78       0        1         0   Magnus Carlsen

@@ -25,29 +25,44 @@ export class Board {
     this.chess = new Chess();
     this.canMove = null; // 'w' | 'b' | 'both' | null
     this.lastMove = null;
+    this.premoves = true; // a move queued while it is the opponent's turn, played the moment it becomes yours
+    const calm = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.cg = Chessground(el, {
       fen: this.chess.fen(),
       orientation: full(orientation),
       coordinates: true,
-      animation: { enabled: true, duration: 160 },
+      animation: { enabled: !calm, duration: 240 },
       highlight: { lastMove: true, check: true },
       draggable: { showGhost: true, distance: 3 },
       selectable: { enabled: true },
-      premovable: { enabled: false },
+      premovable: { enabled: true, showDests: true, castle: true, events: { set: () => this.onPremoveChange?.(true), unset: () => this.onPremoveChange?.(false) } },
       drawable: { enabled: true, visible: true, autoShapes: [] },
-      movable: { free: false, color: undefined, showDests: true, dests: new Map(), events: { after: (from, to) => this.#userMoved(from, to) } },
+      movable: { free: false, color: undefined, showDests: true, dests: new Map(), events: { after: (from, to, meta) => this.#userMoved(from, to, !!meta?.premove) } },
     });
   }
 
   get fen() { return this.chess.fen(); }
   get orientation() { return this.cg.state.orientation === 'white' ? 'w' : 'b'; }
 
-  /** Show a FEN. `lastMove` = [from,to] */
-  setPosition(fen, { lastMove = null } = {}) {
+  /** Show a FEN. `lastMove` = [from,to]. `animate: false` jumps without sliding the pieces (used when stepping far through history). */
+  setPosition(fen, { lastMove = null, animate = true } = {}) {
     this.chess = new Chess(fen);
     this.lastMove = lastMove;
+    if (!animate) this.cg.set({ animation: { enabled: false } });
     this.#sync();
+    if (!animate) { const calm = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches; this.cg.set({ animation: { enabled: !calm } }); }
   }
+
+  /** Play the queued premove, if there is one and it is now legal. Returns true when a move was made. */
+  firePremove() {
+    if (!this.hasPremove) return false;
+    this.firing = true;
+    let played = false;
+    try { played = this.cg.playPremove(); } finally { this.firing = false; }
+    return played;
+  }
+  get hasPremove() { return !!this.cg.state.premovable.current; }
+  cancelPremove() { this.cg.cancelPremove(); }
 
   /** Apply a move already known to be legal (remote or engine move). Returns the chess.js move. */
   applyMove(move) {
@@ -61,31 +76,40 @@ export class Board {
   flip() { this.cg.toggleOrientation(); }
   setOrientation(c) { this.cg.set({ orientation: full(c) }); }
 
-  setArrows(arrows) {
-    // arrows: [{from,to,brush:'green'|'red'|'blue'|'paleBlue'}]
-    this.cg.setAutoShapes(arrows.map((a) => ({ orig: a.from, dest: a.to, brush: a.brush ?? 'green' })));
+  setArrows(arrows, badges = []) {
+    // arrows: [{from,to,brush:'green'|'red'|'blue'|'paleBlue'}]; badges: [{square, svg}] drawn in the top-right corner of a square
+    this.cg.setAutoShapes([
+      ...arrows.map((a) => ({ orig: a.from, dest: a.to, brush: a.brush ?? 'green' })),
+      ...badges.map((b) => ({ orig: b.square, customSvg: { html: b.svg, center: 'orig' } })),
+    ]);
   }
 
   #sync() {
     const turn = this.chess.turn();
-    const movable = this.canMove === 'both' || this.canMove === turn;
+    const mine = this.canMove;
+    const single = mine === 'w' || mine === 'b';
+    const myTurn = mine === 'both' || mine === turn;
+    // A single player may touch their own pieces even while the opponent is thinking: that sets a premove.
     this.cg.set({
       fen: this.chess.fen(),
       turnColor: full(turn),
       check: this.chess.inCheck() ? full(turn) : false,
       lastMove: this.lastMove ?? undefined,
       movable: {
-        color: movable ? full(turn) : undefined,
-        dests: movable ? legalDests(this.chess) : new Map(),
+        color: mine === 'both' ? full(turn) : single ? full(mine) : undefined,
+        dests: myTurn ? legalDests(this.chess) : new Map(),
       },
+      premovable: { enabled: single && this.premoves },
     });
+    if (!single || !this.premoves) this.cg.cancelPremove();
   }
 
-  #userMoved(from, to) {
+  #userMoved(from, to, wasPremove = false) {
     const piece = this.chess.get(from);
     const needsPromo = piece?.type === 'p' && (to[1] === '8' || to[1] === '1')
       && this.chess.moves({ verbose: true }).some((m) => m.from === from && m.to === to && m.promotion);
     if (!needsPromo) return this.onMove?.({ from, to });
+    if (wasPremove) return this.onMove?.({ from, to, promotion: 'q' }); // a queued promotion always makes a queen
     this.#askPromotion(to, piece.color, (promotion) => {
       if (!promotion) { this.#sync(); return; }
       this.onMove?.({ from, to, promotion });

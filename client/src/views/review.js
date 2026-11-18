@@ -4,22 +4,20 @@ import { h, clear, toast, uid } from '../util.js';
 import { Board } from '../board.js';
 import { reviewPgn, analyzePosition, parsePgn } from '../analysis.js';
 import {
-  compactReview, hydrateReview, winPct, THEME_LABELS, THEME_ADVICE, pvToSan,
+  compactReview, hydrateReview, winPct, THEME_LABELS, THEME_ADVICE, ERROR_CLASSES,
 } from '../analysis-core.js';
 import { reviewReport, explainPly, openingNotes, positionInsight, standing } from '../coach.js';
+import { moveNote } from '../notes.js';
+import { CLS, CLS_ORDER, BADGED, badgeSvg } from '../cls.js';
 import { findGame, updateGame, addGame, addMistakes, get } from '../store.js';
 import { play } from '../sound.js';
 import { detectOpening } from '../openings.js';
 import { teaching } from '../teaching.js';
 import { icon } from '../icons.js';
 
-const CLS_LABEL = {
-  book: 'Book', best: 'Best', excellent: 'Excellent', good: 'Good',
-  inaccuracy: 'Inaccuracy', mistake: 'Mistake', blunder: 'Blunder',
-};
-const CLS_ORDER = ['best', 'excellent', 'good', 'book', 'inaccuracy', 'mistake', 'blunder'];
 const SVG = 'http://www.w3.org/2000/svg';
-const mistakeCls = ['inaccuracy', 'mistake', 'blunder'];
+const mistakeCls = ERROR_CLASSES;
+const badge = (cls) => h('span', { class: `badge ${cls}`, title: CLS[cls].label }, CLS[cls].glyph);
 
 function fmtEval(cp, mate) {
   if (Math.abs(cp) >= 9000) return cp > 0 ? 'M' : '-M';
@@ -52,7 +50,7 @@ export function mount(root, params) {
     let review = game.review ? hydrateReview(game.review) : null;
     if (!review) {
       try {
-        const prior = { w: (game.color === 'w' ? game.priorRating : game.opponent.rating) || 1000, b: (game.color === 'b' ? game.priorRating : game.opponent.rating) || 1000 };
+        const prior = { w: (game.color === 'w' ? game.priorRating : game.opponent.rating) || 100, b: (game.color === 'b' ? game.priorRating : game.opponent.rating) || 100 };
         const raw = await reviewPgn(game.pgn, {
           playerColor: game.color, priorRating: prior, depth: 12, signal: cancel,
           onProgress: (d, t) => {
@@ -87,6 +85,8 @@ export function mount(root, params) {
     const myColor = game.color;
     let idx = fens.length - 1; // current position index; 0 = start
     let viewBefore = false; // showing fens[i] with the better move
+    let timer = null; // autoplay
+    let retry = null; // 'try the move yourself' state
     const dom = {};
 
     // --- board column ---
@@ -94,7 +94,7 @@ export function mount(root, params) {
     dom.evalW = h('div', { class: 'w' });
     dom.evalTxt = h('b', {});
     const bar = h('div', { class: 'evalbar', 'aria-hidden': 'true' }, dom.evalW);
-    const board = new Board(dom.boardEl, { orientation: myColor });
+    const board = new Board(dom.boardEl, { orientation: myColor, onMove: (m) => onRetryMove(m) });
     cleanups.push(() => board.destroy());
     board.setInteractive(null);
 
@@ -105,9 +105,13 @@ export function mount(root, params) {
       h('button', { id: 'btn-back', 'aria-label': 'Previous move', onclick: () => stepTo(idx - 1) }, '◀'),
       h('button', { id: 'btn-forward', 'aria-label': 'Next move', onclick: () => stepTo(idx + 1) }, '▶'),
       h('button', { 'aria-label': 'End', onclick: () => stepTo(fens.length - 1) }, '⏭'),
+      (dom.play = h('button', { id: 'btn-play', onclick: toggleAuto, 'aria-label': 'Play the game through' }, icon('play'), ' Play')),
       h('button', { onclick: () => board.flip() }, icon('flip'), ' Flip'),
       h('button', { id: 'btn-next-mistake', onclick: nextKey }, 'Next mistake ›'),
-      (dom.better = h('button', { id: 'btn-better', disabled: true, onclick: () => { const pl = idx > 0 ? review.plies[idx - 1] : null; if (pl) go(pl.i + 1, !viewBefore); } }, icon('bulb'), ' Better move')));
+      (dom.better = h('button', { id: 'btn-better', disabled: true, onclick: () => { stopAuto(); exitRetry(); const pl = idx > 0 ? review.plies[idx - 1] : null; if (pl) go(pl.i + 1, !viewBefore); } }, icon('bulb'), ' Better move')),
+      (dom.retryBtn = h('button', { id: 'btn-retry', disabled: true, onclick: startRetry }, icon('target'), ' Try it yourself')));
+    dom.keys = h('p', { class: 'keys' }, h('kbd', {}, '←'), ' ', h('kbd', {}, '→'), ' step · ', h('kbd', {}, 'Space'), ' play · ', h('kbd', {}, 'N'), ' next mistake · ', h('kbd', {}, 'B'), ' better move · ', h('kbd', {}, 'R'), ' try it yourself');
+    dom.retry = h('div', {});
 
     // --- right column ---
     dom.moves = h('div', { class: 'moves', id: 'review-moves' });
@@ -122,8 +126,8 @@ export function mount(root, params) {
         h('div', { class: 'stack' },
           nav,
           h('div', { class: 'evalbar-wrap' }, bar, dom.boardEl),
-          dom.graph),
-        h('div', { class: 'stack' }, dom.info, summaryCard(review), h('div', { class: 'card' }, h('h2', {}, 'Moves'), dom.moves), dom.coach, insightCard(), themesCard(review))));
+          dom.graph, dom.keys),
+        h('div', { class: 'stack' }, dom.info, dom.retry, summaryCard(review), h('div', { class: 'card' }, h('h2', {}, 'Moves'), dom.moves), dom.coach, insightCard(), themesCard(review))));
 
     renderGraph(); renderMoves(); go(fens.length - 1);
     showReport(review);
@@ -133,19 +137,36 @@ export function mount(root, params) {
     });
     cleanups.push(() => teaching.leaveReview());
     const key = (e) => {
-      if (e.target.matches('input, textarea')) return;
-      if (e.key === 'ArrowLeft') stepTo(idx - 1); else if (e.key === 'ArrowRight') stepTo(idx + 1);
-      else if (e.key === 'ArrowUp') stepTo(0); else if (e.key === 'ArrowDown') stepTo(fens.length - 1);
+      if (e.target.matches('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); stepTo(idx - 1); } else if (e.key === 'ArrowRight') { e.preventDefault(); stepTo(idx + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); stepTo(0); } else if (e.key === 'ArrowDown') { e.preventDefault(); stepTo(fens.length - 1); }
+      else if (e.key === ' ' && !e.target.matches('button, a')) { e.preventDefault(); toggleAuto(); }
+      else if (e.key === 'n' || e.key === 'N') nextKey();
+      else if (e.key === 'b' || e.key === 'B') { if (!dom.better.disabled) dom.better.click(); }
+      else if (e.key === 'r' || e.key === 'R') { if (!dom.retryBtn.disabled) startRetry(); }
     };
     window.addEventListener('keydown', key);
     cleanups.push(() => window.removeEventListener('keydown', key));
 
     /** The player moved through the game themselves (buttons, arrow keys or the move list). */
-    function stepTo(n) { teaching.reviewState({ stepped: true }); go(n); }
+    function stepTo(n) { teaching.reviewState({ stepped: true }); stopAuto(); go(n); }
+
+    function stopAuto() {
+      if (timer) { clearInterval(timer); timer = null; }
+      dom.play.replaceChildren(icon('play'), ' Play');
+    }
+    cleanups.push(() => { if (timer) clearInterval(timer); });
+    function toggleAuto() {
+      if (timer) { stopAuto(); return; }
+      if (idx >= fens.length - 1) go(0);
+      dom.play.replaceChildren('⏸ Pause');
+      timer = setInterval(() => { if (idx >= fens.length - 1) { stopAuto(); return; } go(idx + 1); }, 1100);
+    }
 
     function go(n, before = false) {
       idx = Math.max(0, Math.min(fens.length - 1, n));
       viewBefore = before;
+      exitRetry(false);
       const ply = idx > 0 ? review.plies[idx - 1] : null;
       if (before && ply) {
         board.setPosition(fens[idx - 1]);
@@ -156,7 +177,7 @@ export function mount(root, params) {
       } else {
         const m = idx > 0 ? moves[idx - 1] : null;
         board.setPosition(fens[idx], { lastMove: m ? [m.from, m.to] : null });
-        board.setArrows([]);
+        board.setArrows([], ply && BADGED.includes(ply.cls) ? [{ square: ply.uci.slice(2, 4), svg: badgeSvg(ply.cls) }] : []);
         if (m) play(m.captured ? 'capture' : 'move');
       }
       const cp = review.series[before && ply ? idx - 1 : idx];
@@ -164,6 +185,7 @@ export function mount(root, params) {
       dom.evalW.style.height = `${pct}%`;
       renderInfo(ply);
       dom.better.disabled = !(ply && mistakeCls.includes(ply.cls));
+      dom.retryBtn.disabled = !(ply && ply.color === myColor && mistakeCls.includes(ply.cls));
       dom.better.replaceChildren(...(before && ply ? ['Back to the game'] : [icon('bulb'), ' Better move']));
       teaching.reviewState({ onMistake: !!ply && ply.color === myColor && mistakeCls.includes(ply.cls), viewingBetter: before && !!ply });
       markMoves();
@@ -179,22 +201,83 @@ export function mount(root, params) {
 
     function renderInfo(ply) {
       clear(dom.info);
-      if (!ply) { dom.info.append(h('b', {}, 'Starting position'), h('p', { class: 'small muted' }, 'Use ← → keys or the buttons to step through the game.')); return; }
+      dom.pv = null;
+      if (!ply) { dom.info.append(h('b', {}, 'Starting position'), h('p', { class: 'small muted' }, 'Use the arrow keys, the buttons or ▶ Play to go through the game. Every move gets a note here.')); return; }
       const mine = ply.color === myColor;
       const moveNo = `${Math.floor(ply.i / 2) + 1}${ply.color === 'w' ? '.' : '...'}`;
+      const err = mistakeCls.includes(ply.cls);
       dom.info.append(
         h('div', { class: 'row between' },
-          h('b', { class: `cls-${ply.cls}` }, h('span', { class: `dot ${ply.cls}` }), `${mine ? 'Your move' : "Opponent's move"}: ${moveNo} ${ply.san} — ${CLS_LABEL[ply.cls]}`),
+          h('b', { class: `cls-${ply.cls}` }, badge(ply.cls), `${mine ? 'Your move' : "Opponent's move"}: ${moveNo} ${ply.san} — ${CLS[ply.cls].label}`),
           h('span', { class: 'muted', title: fmtEval(review.series[ply.i + 1]) }, `After this move: ${standing(myColor === 'w' ? review.series[ply.i + 1] : -review.series[ply.i + 1])} for you`)),
         h('div', { class: 'small muted' }, `Accuracy of this move: ${ply.acc}%`));
-      if (['inaccuracy', 'mistake', 'blunder'].includes(ply.cls)) {
-        dom.info.append(h('p', { style: { margin: '.5rem 0 0' } }, 'Better was ', h('b', {}, ply.bestSan ?? '?'), '.',
-          ply.pvSan.length > 1 ? h('span', { class: 'muted small' }, ` The computer's line: ${ply.pvSan.join(' ')}`) : null));
-        const tags = ply.tags.filter((t) => THEME_LABELS[t]);
-        if (tags.length) dom.info.append(h('div', { class: 'small', style: { marginTop: '.3rem' } }, tags.map((t) => h('span', { class: 'pill', style: { marginRight: '.3rem' } }, THEME_LABELS[t]))));
-        if (mine) dom.info.append(h('p', { class: 'small', style: { marginTop: '.5rem' } }, icon('cap', 16), ' ', explainPly(ply, fens[ply.i], fens[ply.i + 1])));
-        dom.info.append(h('p', { class: 'small muted', style: { margin: '.4rem 0 0' } }, viewBefore ? 'Green arrow: the better move. Red arrow: the move that was played. Use ↩ Back to the game to return.' : 'Use the 💡 Better move button above the board to see it.'));
+      const tags = err ? ply.tags.filter((t) => THEME_LABELS[t]) : [];
+      if (tags.length) dom.info.append(h('div', { class: 'small', style: { marginTop: '.3rem' } }, tags.map((t) => h('span', { class: 'pill', style: { marginRight: '.3rem' } }, THEME_LABELS[t]))));
+      const notes = moveNote(ply, { fenBefore: fens[ply.i], fenAfter: fens[ply.i + 1], mine, openingName: review.opening.name });
+      dom.info.append(h('div', { class: `movenote ${err ? '' : 'good-note'}` }, notes.map((t) => h('p', { class: 'small' }, t))));
+      // the computer's line, one click per move: step through it on the board
+      if (ply.pvSan?.length > 1 && (err || ply.cls === 'brilliant' || ply.cls === 'great')) {
+        dom.pv = h('div', { class: 'pvline' }, h('span', { class: 'lbl' }, err ? 'Better line:' : 'The idea:'),
+          ply.pvSan.map((san, k) => h('button', { type: 'button', title: 'Show the position after this move', onclick: () => showLine(ply, k + 1) }, `${k % 2 === 0 ? `${Math.floor((ply.i + k) / 2) + 1}${(ply.i + k) % 2 === 0 ? '.' : '…'}` : ''}${san}`)));
+        dom.info.append(dom.pv);
       }
+      if (err) dom.info.append(h('p', { class: 'small muted', style: { margin: '.4rem 0 0' } }, viewBefore ? 'Green arrow: the better move. Red arrow: the move that was played.' : 'Use "Better move" to see it on the board, or "Try it yourself" to find it.'));
+    }
+
+    /** Show the position after the first `k` moves of the computer's line for a ply. */
+    function showLine(ply, k) {
+      stopAuto(); exitRetry(false);
+      const c = new Chess(fens[ply.i]); let last = null;
+      for (let j = 0; j < k; j++) { try { last = c.move(ply.pvSan[j]); } catch { break; } }
+      board.setPosition(c.fen(), { lastMove: last ? [last.from, last.to] : null });
+      board.setArrows([], []);
+      if (last) play(last.captured ? 'capture' : 'move');
+      dom.pv?.querySelectorAll('button').forEach((b, j) => b.classList.toggle('on', j === k - 1));
+    }
+
+    // --- "try it yourself": find the better move on the board and get an answer ---
+    function startRetry() {
+      const ply = idx > 0 ? review.plies[idx - 1] : null;
+      if (!ply || ply.color !== myColor || !mistakeCls.includes(ply.cls)) return;
+      stopAuto();
+      retry = { ply, busy: false };
+      board.setPosition(fens[ply.i]); board.setArrows([], []);
+      board.setInteractive(myColor);
+      clear(dom.retry);
+      dom.retry.append(h('div', { class: 'retry-box' }, h('b', {}, 'Your turn again'), h('p', { class: 'small', style: { margin: '.2rem 0 0' } }, `Find a better move than ${ply.san}. Drag a piece, or click it and then a square.`),
+        h('div', { class: 'rnav', style: { marginTop: '.4rem' } }, h('button', { onclick: () => { exitRetry(); go(ply.i + 1, true); } }, 'Show me the answer'), h('button', { onclick: () => { exitRetry(); go(ply.i + 1); } }, 'Cancel'))));
+    }
+    function exitRetry(clearBox = true) {
+      if (!retry) { if (clearBox) clear(dom.retry); return; }
+      retry = null; board.setInteractive(null); board.cancelPremove?.();
+      clear(dom.retry);
+    }
+    async function onRetryMove(m) {
+      if (!retry || retry.busy) return;
+      const { ply } = retry;
+      const before = new Chess(fens[ply.i]);
+      let mv;
+      try { mv = before.move({ from: m.from, to: m.to, promotion: m.promotion }); } catch { board.setPosition(fens[ply.i]); return; }
+      retry.busy = true;
+      board.setPosition(before.fen(), { lastMove: [mv.from, mv.to] }); board.setInteractive(null);
+      play(mv.captured ? 'capture' : 'move');
+      const uci = mv.from + mv.to + (mv.promotion ?? '');
+      const again = () => { startRetry(); };
+      const box = (cls, title, text, ...extra) => { clear(dom.retry); dom.retry.append(h('div', { class: `retry-box ${cls}` }, h('b', {}, title), h('p', { class: 'small', style: { margin: '.2rem 0 .4rem' } }, text), h('div', { class: 'rnav' }, ...extra))); };
+      const btns = [h('button', { onclick: again }, 'Try another move'), h('button', { onclick: () => { exitRetry(); go(ply.i + 1, true); } }, 'Show the best move'), h('button', { class: 'primary', onclick: () => { exitRetry(); go(ply.i + 1); } }, 'Back to the game')];
+      if (uci === ply.bestUci) { play('right'); box('ok', `Yes! ${mv.san} is the best move`, 'That is the computer\'s top choice.', btns[2]); retry.busy = false; return; }
+      box('', 'Checking your move…', 'Stockfish is looking at it.');
+      let loss = null;
+      try {
+        const lines = await analyzePosition(before.fen(), { multipv: 1, depth: 10, movetime: 900 });
+        const cpWhite = lines[0]?.cp ?? (before.isCheckmate() ? (ply.color === 'w' ? 10000 : -10000) : 0);
+        loss = ply.wpBefore - winPct(ply.color === 'w' ? cpWhite : -cpWhite);
+      } catch { /* engine busy: fall back to the plain answer */ }
+      if (!retry) return; // the player moved on
+      if (loss != null && loss <= 3) { play('right'); box('ok', `Good — ${mv.san} works too`, `It is about as strong as the computer's ${ply.bestSan}.`, btns[2]); }
+      else if (loss != null && loss < 10) { box('', `${mv.san} is playable`, `But ${ply.bestSan} was better (it costs you about ${Math.round(loss)} points of winning chances).`, btns[0], btns[1], btns[2]); }
+      else { play('wrong'); box('no', `Not quite — ${mv.san}`, loss == null ? `The computer prefers ${ply.bestSan}.` : `That drops your winning chances by about ${Math.round(loss)} points. Look for checks, captures and threats.`, btns[0], btns[1], btns[2]); }
+      retry.busy = false;
     }
 
     function renderMoves() {
@@ -202,9 +285,9 @@ export function mount(root, params) {
       review.plies.forEach((p, i) => {
         if (i % 2 === 0) dom.moves.append(h('span', { class: 'n' }, `${i / 2 + 1}.`));
         dom.moves.append(h('span', {
-          class: `m click ${p.cls} ${['inaccuracy', 'mistake', 'blunder'].includes(p.cls) ? '' : ''}`,
-          dataset: { i: String(i + 1) }, onclick: () => stepTo(i + 1), title: CLS_LABEL[p.cls],
-        }, h('span', { class: `dot ${p.cls}`, style: { width: '.5rem', height: '.5rem', marginRight: '.3rem' } }), p.san));
+          class: `m click ${p.cls}`,
+          dataset: { i: String(i + 1) }, onclick: () => stepTo(i + 1), title: CLS[p.cls].label,
+        }, p.san, BADGED.includes(p.cls) ? h('span', { class: `badge ${p.cls}`, style: { marginLeft: '.3rem', marginRight: 0, minWidth: '1.1rem', height: '1.1rem', fontSize: '.62rem' } }, CLS[p.cls].glyph) : null));
       });
       if (review.plies.length % 2 === 1) dom.moves.append(h('span', {}));
     }
@@ -227,8 +310,8 @@ export function mount(root, params) {
       svg.append(mk('polygon', { points: `0,${H} ${pts.join(' ')} ${W},${H}`, fill: '#e9e9e9' }));
       svg.append(mk('line', { x1: 0, x2: W, y1: H / 2, y2: H / 2, stroke: '#888', 'stroke-width': 1, 'stroke-dasharray': '4 4' }));
       review.plies.forEach((p, i) => {
-        if (p.color === myColor && ['mistake', 'blunder'].includes(p.cls)) {
-          svg.append(mk('circle', { cx: x(i + 1), cy: y(review.series[i + 1]), r: 4, fill: p.cls === 'blunder' ? '#e5604d' : '#e68a3c', stroke: '#111', 'stroke-width': 1 }));
+        if (p.color === myColor && ['mistake', 'blunder', 'miss', 'brilliant', 'great'].includes(p.cls)) {
+          svg.append(mk('circle', { cx: x(i + 1), cy: y(review.series[i + 1]), r: 4, fill: CLS[p.cls].color, stroke: '#111', 'stroke-width': 1 }));
         }
       });
       svg.append(mk('line', { x1: x(idx), x2: x(idx), y1: 0, y2: H, stroke: '#7fb64a', 'stroke-width': 2 }));
@@ -255,10 +338,10 @@ export function mount(root, params) {
         h('div', { class: 'acc' },
           box('Your accuracy', `${mine.accuracy ?? '–'}%`, `Opponent ${them.accuracy ?? '–'}%`),
           box('Estimated level', mine.performance ?? '–', `Your rating ${game.priorRating}${game.opponent.rating ? ` · opponent ${game.opponent.rating}` : ''}`),
-          box('Best moves', `${mine.counts.best + mine.counts.book} of ${mine.moves}`, 'matched the computer or the opening book')),
-        h('div', { class: 'counts' }, CLS_ORDER.map((k) => h('div', { class: `cls-${k}` }, h('span', { class: 'dot' }), `${CLS_LABEL[k]}: `, h('b', {}, String(mine.counts[k] ?? 0))))),
+          box('Best moves', `${mine.counts.best + mine.counts.book + (mine.counts.great ?? 0) + (mine.counts.brilliant ?? 0)} of ${mine.moves}`, 'matched the computer or the opening book')),
+        h('div', { class: 'counts' }, CLS_ORDER.filter((k) => (mine.counts[k] ?? 0) > 0 || !['brilliant', 'great', 'miss'].includes(k)).map((k) => h('div', { class: 'cnt' }, badge(k), `${CLS[k].label}: `, h('b', {}, String(mine.counts[k] ?? 0))))),
         h('div', {}, h('h3', {}, 'Accuracy by phase'), h('div', { class: 'bars' }, phases)),
-        h('p', { class: 'ai-note' }, '"Estimated level" is a rough guess from how closely your moves matched the computer\'s choices. It can be off by hundreds of points, especially in short games.'),
+        h('p', { class: 'ai-note' }, '"Estimated level" compares how much each move cost you with games between computer opponents of known strength, then leans toward your current rating when the game is short. It is a guess: one game is noisy and can be off by several hundred points.'),
         openingBlock(r));
     }
 
@@ -300,13 +383,20 @@ export function mount(root, params) {
       card.append(h('p', {}, c.summary));
       if (c.opening?.comment) card.append(h('p', {}, h('b', {}, 'Opening: '), c.opening.comment, c.opening.tip ? ` Tip: ${c.opening.tip}` : ''));
       if (c.strengths?.length) card.append(h('div', {}, h('b', {}, 'What you did well'), h('ul', {}, c.strengths.map((s) => h('li', {}, s)))));
+      if (c.highlights?.length) {
+        card.append(h('h3', { style: { marginTop: '1rem' } }, 'Your best moments'));
+        for (const k of c.highlights) {
+          const p = review.plies[k.id]; if (!p) continue;
+          card.append(h('div', { class: 'moment hl', onclick: () => stepTo(k.id + 1) }, h('b', {}, badge(p.cls), `${Math.floor(k.id / 2) + 1}${p.color === 'w' ? '.' : '...'} ${p.san} `), h('div', { class: 'small' }, k.explanation)));
+        }
+      }
       card.append(h('h3', { style: { marginTop: '1rem' } }, 'Lessons for next game'));
       c.lessons.forEach((l, i) => card.append(h('div', { class: 'lesson' }, h('b', {}, `${i + 1}. ${l.title}`), h('p', { class: 'small', style: { margin: '.2rem 0' } }, l.body), l.drill && h('div', { class: 'drill' }, 'Drill: ', l.drill))));
       if (c.keyMoments?.length) {
         card.append(h('h3', { style: { marginTop: '1rem' } }, 'Key moments'));
         for (const k of c.keyMoments) {
           const p = review.plies[k.id]; if (!p) continue;
-          card.append(h('div', { class: 'moment', onclick: () => go(k.id + 1) }, h('b', {}, `${Math.floor(k.id / 2) + 1}${p.color === 'w' ? '.' : '...'} ${p.san} `, h('span', { class: `dot ${p.cls}` })), h('div', { class: 'small' }, k.explanation)));
+          card.append(h('div', { class: 'moment', onclick: () => stepTo(k.id + 1) }, h('b', {}, badge(p.cls), `${Math.floor(k.id / 2) + 1}${p.color === 'w' ? '.' : '...'} ${p.san} `), h('div', { class: 'small' }, k.explanation)));
         }
       }
       card.append(h('p', { class: 'ai-note' }, 'Written by OpenChess\'s built-in coach from Stockfish\'s analysis — no AI service involved. Engine numbers are exact; the explanations are rule-based and cover the common cases.'));

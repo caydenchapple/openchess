@@ -353,3 +353,62 @@ main.wide .review { grid-template-columns: minmax(300px, min(calc(100dvh - 12rem
 .streak-pill .ic { color: #f0883e; }
 .streak-note .ic { color: #f0883e; }
 @media (max-width: 900px) { :fullscreen main.wide .game { grid-template-columns: minmax(0, 1fr); } :fullscreen main.wide .game .boardcol { max-width: min(100%, calc(100dvh - 6rem)); } }
+
+/* ---- v3: feel and realism ---- */
+/* last move fades in, the king in check pulses, pieces sit on the board with a soft shadow and lift when picked up */
+cg-board square.last-move { animation: lm-in .35s ease-out; }
+@keyframes lm-in { from { background-color: rgba(255, 215, 0, .0); } }
+cg-board square.check { animation: check-pulse 1.1s ease-in-out infinite; }
+@keyframes check-pulse { 50% { filter: brightness(1.25); } }
+cg-board piece { filter: drop-shadow(0 2px 1.5px rgba(0, 0, 0, .38)); will-change: transform; }
+cg-board piece.dragging { filter: drop-shadow(0 10px 8px rgba(0, 0, 0, .45)); transform-origin: center; z-index: 11 !important; cursor: grabbing; }
+cg-board piece.anim { filter: drop-shadow(0 6px 5px rgba(0, 0, 0, .35)); z-index: 9; }
+cg-board piece.fading { transition: opacity .2s; opacity: 0; }
+/* premoves: a blue wash on the two squares, a blue ring on the places it could go */
+cg-board square.current-premove { background-color: rgba(20, 30, 85, .5); }
+cg-board square.premove-dest { background: radial-gradient(rgba(20, 30, 85, .5) 22%, transparent 0); }
+cg-board square.oc.premove-dest { background: radial-gradient(transparent 0%, transparent 79%, rgba(20, 30, 85, .35) 80%); }
+
+/* looking back through the game */
+.movenav { display: flex; align-items: center; gap: .3rem; margin-bottom: .5rem; }
+.movenav button { padding: .3rem .55rem; min-width: 2.4rem; display: inline-flex; align-items: center; justify-content: center; }
+.movenav button:disabled { opacity: .35; cursor: default; }
+.movenav .live-btn { margin-left: auto; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.movenav .live-btn[hidden] { display: none; }
+.game:has(.movenav.behind) .boardwrap cg-board { box-shadow: 0 0 0 3px var(--warn), 0 10px 40px rgba(0,0,0,.35); }
+@media (pointer: coarse) { .movenav button { min-height: 44px; min-width: 44px; } }
+@media (prefers-reduced-motion: reduce) { cg-board square.last-move, cg-board square.check { animation: none; } }
+
+/* board colours (Profile → Settings) */
+:root[data-board="brown"] { --sq-light: #f0d9b5; --sq-dark: #b58863; }
+:root[data-board="blue"] { --sq-light: #dee3e6; --sq-dark: #8ca2ad; }
+:root[data-board="slate"] { --sq-light: #c8c8c8; --sq-dark: #6d7a8c; }
+:root[data-board="rose"] { --sq-light: #f3e3e0; --sq-dark: #c08a8a; }
+
+/* ---- v4: review badges, notes, playthrough ---- */
+:root { --brilliant: #1baca6; --great: #5c8bb0; --miss: #e0584f; }
+.badge { display: inline-flex; align-items: center; justify-content: center; min-width: 1.35rem; height: 1.35rem; padding: 0 .25rem; border-radius: 99px; font-size: .72rem; font-weight: 800; color: #fff; line-height: 1; margin-right: .35rem; vertical-align: middle; }
+.badge.brilliant { background: #1baca6; } .badge.great { background: #5c8bb0; } .badge.best { background: #81b64c; } .badge.excellent { background: #96bc4b; }
+.badge.good { background: #97af8b; } .badge.book { background: #a88865; } .badge.inaccuracy { background: #f7c631; color: #3a2e00; }
+.badge.mistake { background: #e58f2a; } .badge.miss { background: #e0584f; } .badge.blunder { background: #ca3431; }
+.moves .m.brilliant { box-shadow: inset 0 -2px var(--brilliant); } .moves .m.great { box-shadow: inset 0 -2px var(--great); } .moves .m.miss { box-shadow: inset 0 -2px var(--miss); }
+.cls-brilliant { color: #1baca6; } .cls-great { color: #5c8bb0; }
+.counts .cnt { display: flex; align-items: center; }
+.movenote { margin: .6rem 0 0; display: grid; gap: .35rem; }
+.movenote p { margin: 0; }
+.movenote.good-note { border-left: 3px solid var(--accent); padding-left: .7rem; }
+.pvline { display: flex; flex-wrap: wrap; gap: .25rem; align-items: center; margin-top: .4rem; }
+.pvline button { padding: .1rem .5rem; font: 600 .85rem ui-monospace, Menlo, monospace; border-radius: 6px; }
+.pvline button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.pvline .lbl { font-size: .8rem; color: var(--muted); margin-right: .2rem; }
+.rnav { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.rnav .grow { flex: 1; }
+.retry-box { border: 1px dashed var(--accent); border-radius: 8px; padding: .6rem .8rem; background: var(--bg); }
+.retry-box.ok { border-style: solid; border-color: var(--accent); } .retry-box.no { border-style: solid; border-color: var(--danger); }
+.keys { font-size: .78rem; color: var(--muted); }
+.keys kbd { font: inherit; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 .3rem; background: var(--bg3); }
+.moment .badge { margin-right: .3rem; }
+.moment.hl { border-color: #1baca6; }
+.chip.level.locked { opacity: .5; cursor: not-allowed; border-style: dashed; }
+.chip.level.locked svg { vertical-align: -2px; }
+.banner.ladder { margin: .6rem 0; }

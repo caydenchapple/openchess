@@ -1,6 +1,8 @@
 // Measures the computer levels by self-play, so the Elo labels are measured, not guessed.
-//   node scripts/calibrate-levels.mjs                      # adjacent levels, 16 games each, writes polish/calibration.json
-//   node scripts/calibrate-levels.mjs --games 30 --upto 11  # more games, only levels 1..11
+//   node scripts/calibrate-levels.mjs                      # adjacent levels, 16 games each, writes calibration/levels-check.json
+//   node scripts/calibrate-levels.mjs --games 30 --upto 2400  # more games, only levels up to 2400 Elo
+// The ladder is every level except the "famous" ones, sorted by Elo; each level plays the one above it (colours alternate).
+// To MEASURE strengths (rather than check the order), use calibrate-ladder.mjs.
 // Each game is a separate process (Stockfish WASM is single-threaded) so several run at once.
 import { Chess } from 'chess.js';
 import { spawn } from 'node:child_process';
@@ -23,7 +25,7 @@ if (process.argv.includes('--game')) {
   const la = LEVELS.find((l) => l.id === a); const lb = LEVELS.find((l) => l.id === b);
   const sfn = (fen, o) => search(fen, { depth: 40, multipv: o.multipv ?? 1, ...o });
   let plies = 0;
-  while (!g.isGameOver() && !g.isDraw() && plies < 220) {
+  while (!g.isGameOver() && !g.isDraw() && plies < 300) {
     const whiteToMove = g.turn() === 'w';
     const level = whiteToMove === aWhite ? la : lb;
     const uci = await chooseMove(sfn, g.fen(), level, rand, { sans: g.history() });
@@ -32,13 +34,18 @@ if (process.argv.includes('--game')) {
   }
   let score = 0.5;
   if (g.isCheckmate()) { const loserIsWhite = g.turn() === 'w'; score = loserIsWhite === aWhite ? 0 : 1; }
+  else if (!g.isDraw() && !g.isGameOver()) { // out of moves: adjudicate by material (same rule as calibrate-ladder.mjs)
+    const V = { p: 1, n: 3, b: 3, r: 5, q: 9 }; let d = 0;
+    for (const ch of g.fen().split(' ')[0]) { const v = V[ch.toLowerCase()]; if (v) d += ch === ch.toUpperCase() ? v : -v; }
+    if (Math.abs(d) >= 3) score = (d > 0) === aWhite ? 1 : 0;
+  }
   console.log(`RESULT ${score}`);
   quit();
 }
 
 // ---- parent mode
-const games = Number(arg('games', 16)); const upto = Number(arg('upto', 11)); const conc = Number(arg('conc', 4));
-const ids = LEVELS.filter((l) => l.id <= upto).map((l) => l.id);
+const games = Number(arg('games', 16)); const upto = Number(arg('upto', 2400)); const conc = Number(arg('conc', 4));
+const ids = LEVELS.filter((l) => l.group !== 'famous' && l.elo <= upto).sort((a, b) => a.elo - b.elo).map((l) => l.id);
 const jobs = [];
 for (let i = 0; i + 1 < ids.length; i++) for (let k = 0; k < games; k++) jobs.push({ a: ids[i], b: ids[i + 1], seed: k + 1, white: k % 2 === 0 ? 1 : 0 });
 
@@ -73,5 +80,5 @@ for (const r of rows) {
   const lo = LEVELS.find((l) => l.id === r.lower); const up = LEVELS.find((l) => l.id === r.upper);
   console.log(`${lo.name} (${lo.elo}) → ${up.name} (${up.elo}): measured +${r.gap}, nominal +${up.elo - lo.elo}  [${r.games} games, lower scored ${r.scoreOfLower}]`);
 }
-mkdirSync('polish', { recursive: true });
-writeFileSync('polish/calibration.json', JSON.stringify({ games, rows, at: new Date().toISOString() }, null, 2));
+mkdirSync('calibration', { recursive: true });
+writeFileSync('calibration/levels-check.json', JSON.stringify({ games, rows, at: new Date().toISOString() }, null, 2));

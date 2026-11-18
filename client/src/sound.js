@@ -27,11 +27,32 @@ function blip({ freq = 440, dur = 0.06, type = 'sine', gain = 0.12, slide = 0, d
   o.stop(t + dur + 0.02);
 }
 
+// A wooden "knock": a short burst of filtered noise (the click) over a low thump (the body of the piece landing on the board).
+let noiseBuf;
+function knock({ gain = 0.5, pitch = 180, bright = 1800, dur = 0.07, delay = 0 } = {}) {
+  const a = ac();
+  if (!a) return;
+  const t = a.currentTime + delay;
+  if (!noiseBuf) {
+    noiseBuf = a.createBuffer(1, Math.floor(a.sampleRate * 0.12), a.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  }
+  const n = a.createBufferSource(); n.buffer = noiseBuf;
+  const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = bright; f.Q.value = 0.9;
+  const g = a.createGain();
+  g.gain.setValueAtTime(gain, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  n.connect(f).connect(g).connect(a.destination);
+  n.start(t); n.stop(t + dur + 0.02);
+  blip({ freq: pitch, dur: dur * 1.6, type: 'sine', gain: gain * 0.55, slide: -pitch * 0.45, delay });
+}
+
 const SOUNDS = {
-  move: () => blip({ freq: 220, dur: 0.05, type: 'triangle', gain: 0.18, slide: -60 }),
-  capture: () => { blip({ freq: 160, dur: 0.09, type: 'square', gain: 0.1, slide: -80 }); blip({ freq: 300, dur: 0.04, type: 'triangle', gain: 0.1 }); },
-  castle: () => { blip({ freq: 220, dur: 0.05, type: 'triangle', gain: 0.16 }); blip({ freq: 260, dur: 0.05, type: 'triangle', gain: 0.16, delay: 0.07 }); },
-  check: () => blip({ freq: 520, dur: 0.12, type: 'sawtooth', gain: 0.07, slide: 120 }),
+  move: () => knock({ gain: 0.45, pitch: 190, bright: 1700 }),
+  capture: () => { knock({ gain: 0.7, pitch: 150, bright: 1300, dur: 0.09 }); knock({ gain: 0.35, pitch: 240, bright: 2400, dur: 0.05, delay: 0.035 }); },
+  castle: () => { knock({ gain: 0.45, pitch: 200 }); knock({ gain: 0.5, pitch: 170, delay: 0.11 }); },
+  check: () => { knock({ gain: 0.5, pitch: 190 }); blip({ freq: 700, dur: 0.16, type: 'sine', gain: 0.05, slide: 160, delay: 0.05 }); },
   end: () => { blip({ freq: 392, dur: 0.18, gain: 0.12 }); blip({ freq: 294, dur: 0.3, gain: 0.12, delay: 0.16 }); },
   low: () => blip({ freq: 880, dur: 0.04, type: 'square', gain: 0.05 }),
   start: () => { blip({ freq: 330, dur: 0.1, gain: 0.1 }); blip({ freq: 440, dur: 0.14, gain: 0.1, delay: 0.1 }); },

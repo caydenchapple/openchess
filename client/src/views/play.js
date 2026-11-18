@@ -6,6 +6,7 @@ import { get, setName } from '../store.js';
 import { net, newCode, cleanCode, validCode } from '../net.js';
 import { session, loadActive, TC_LABEL, TC_NAME } from '../session.js';
 import { isProvisional } from '../rating.js';
+import { isUnlocked, unlockHint, suggestedLevel } from '../ladder.js';
 
 const ONLINE_TCS = [[1, 0], [3, 0], [3, 2], [5, 0], [5, 3], [10, 0], [10, 5], [15, 10]];
 const COMPUTER_TCS = [[0, 0], [3, 2], [5, 0], [10, 0], [15, 10], [30, 0]];
@@ -13,8 +14,7 @@ const COMPUTER_TCS = [[0, 0], [3, 2], [5, 0], [10, 0], [15, 10], [30, 0]];
 export function mount(root) {
   const st = get();
   const mine = st.ratings.computer.r;
-  const near = [...LEVELS].filter((l) => l.group === 'learn' || l.group === 'club').sort((a, b) => Math.abs(a.elo - mine) - Math.abs(b.elo - mine))[0];
-  const prefs = { level: near.id, color: 'random', tc: [0, 0] };
+  const prefs = { level: suggestedLevel(st).id, color: 'random', tc: [0, 0] };
   const offs = [];
   let waiting = null; let pendingJoin = null; let hostTries = 0;
   const hostPrefs = { tc: [5, 0], color: 'random' };
@@ -42,14 +42,19 @@ export function mount(root) {
       const list = LEVELS.filter((l) => l.group === g.id); if (!list.length) return null;
       return h('div', { class: 'level-group' },
         h('h3', {}, g.title), h('p', { class: 'muted small' }, g.blurb),
-        h('div', { class: 'levels' }, list.map((l) => h('button', {
-          type: 'button', class: `chip level ${l.group}`, 'aria-pressed': String(l.id === prefs.level), title: l.person?.note ?? '',
-          onclick: () => { prefs.level = l.id; render(); },
-        }, h('span', {}, l.name), h('small', {}, l.group === 'max' ? 'strongest' : `${l.elo}`)))));
+        h('div', { class: 'levels' }, list.map((l) => {
+          const open = isUnlocked(l);
+          return h('button', {
+            type: 'button', class: `chip level ${l.group}${open ? '' : ' locked'}`, 'aria-pressed': String(l.id === prefs.level), title: open ? (l.person?.note ?? '') : unlockHint(l),
+            'aria-disabled': open ? null : 'true',
+            onclick: () => { if (open) prefs.level = l.id; else toast(unlockHint(l), 4000); render(); },
+          }, h('span', {}, open ? '' : icon('lock', 14), open ? '' : ' ', l.name), h('small', {}, l.group === 'max' ? 'strongest' : `${l.elo}`));
+        })));
     });
     return h('section', { class: 'card setup' },
       h('h2', {}, 'Play the computer'),
-      h('p', { class: 'muted small' }, 'Runs privately in your browser. Strength was measured by self-play on Stockfish\'s Elo scale (about ±100): good for comparing levels, not the same as a Chess.com or FIDE rating.'),
+      h('p', { class: 'muted small' }, 'Runs privately in your browser. Strength was measured by self-play on Stockfish\'s Elo scale (about ±80): good for comparing levels, not the same as a Chess.com or FIDE rating.'),
+      h('div', { class: 'banner ladder' }, h('b', {}, `Your rating: ${mine}`), h('span', { class: 'muted small' }, ' — everyone starts at 100. Beat an opponent to open the next one; a win over someone far above you earns the most.')),
       groups,
       lv.person && h('div', { class: 'banner persona' }, h('b', {}, `${lv.name}${lv.person.born ? ` (b. ${lv.person.born})` : ''}`), h('p', { class: 'small' }, lv.person.note)),
       h('label', { style: { marginTop: '1rem' } }, 'You play'),

@@ -2,12 +2,15 @@
 
 Free, open-source chess. **No sign-up, no ads, no paywall, no AI services or API keys.**
 
-- ♞ **Play the computer** — 18 levels from about 400 up to full strength, measured by self-play on Stockfish's Elo scale; the top levels are named after champions (Spassky, Polgár, Karpov, Anand, Kasparov, Carlsen)
+- ♞ **Play the computer** — 20+ levels from about 100 up to full strength, measured by self-play on Stockfish's Elo scale (about ±80); the top levels are named after champions (Spassky, Polgár, Karpov, Anand, Kasparov, Carlsen)
 - ♚ **Bobby Fischer bot** — plays his repertoire (1.e4; the Najdorf and King's Indian as Black, including the opening of the "Game of the Century") with his taste for bishops and the initiative, at his peak strength
+- ♟ **Feels like a real board** — premoves (queue your reply while the opponent thinks), pieces that slide and lift, wooden move sounds, five board colours, and look-back through the game while it is live (click a move, ← → ↑ ↓, Home/End)
 - 🌐 **Play a friend online with a code** — host a game and share the 6-letter code, or join with one. No public matchmaking. Draw offers, and takebacks the opponent has to accept
-- 📊 **Post-game review** — every move rated (best → blunder), accuracy by phase, evaluation graph, opening detection, estimated performance rating
+- 🪜 **Start at 100 and climb** — everyone begins at a rating of 100. Opponents open up as you beat the one below them (or get close to their rating), with a rung for every level from beginner to Stockfish
+- 📊 **Post-game review** — every move rated like Chess.com (Brilliant !!, Great !, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder) with a plain-language note on each, accuracy by phase, evaluation graph, opening detection, estimated performance rating
 - 🎓 **Built-in coach** (plain code, no AI model) — game summary, strengths, three personal lessons with drills, an explanation of each key mistake, opening notes, "position insight", and a training plan
 - 📚 **Training that fits you** — you don't pick lessons. Each session is built from your ratings, your reviewed games and how you solve exercises, at a difficulty you should solve about 3 times in 4, with spaced repetition and a daily streak
+- ▶ **Play through your game** — autoplay, step with the arrow keys, click the computer's line move by move, and "Try it yourself" to find the better move and get Stockfish's verdict
 - 🧭 **Light-touch teaching** — a controls card, one-time tips, a 3-step coach walk-through of your first review, and a "?" how-to-play panel (plan in [docs/GAME_BRIEF.md](docs/GAME_BRIEF.md))
 - 🧩 **Train on your own mistakes** — every blunder becomes a puzzle
 - 🔒 **Private** — games, ratings and settings live in your browser's `localStorage`
@@ -35,8 +38,12 @@ browser                                          server (Node, ~500 lines)
 ```
 
 **Review maths** (`client/src/analysis-core.js`): Stockfish evaluates every position at depth 12 (lite
-network). Win-probability curve and per-move accuracy follow Lichess' formulas; move classes come from
-win-% lost (<2 excellent, <5 good, <10 inaccuracy, <20 mistake, else blunder). Mistake themes (hung
+network, two lines per position). Win-probability curve and per-move accuracy follow Lichess' formulas; move classes come from
+win-% lost (<2 excellent, <5 good, <10 inaccuracy, <20 mistake, else blunder), plus three special ones: **Brilliant**
+(the engine's own move, and a real sacrifice: you are a piece or more down after the reply and still down a few moves later or mating, while
+not already winning), **Great** (the best move when the next-best is at least 15 win-% worse, so it is the only move that holds, and it is not a simple recapture)
+and **Miss** (the opponent just erred, you were better, and your move let it go without losing). `client/src/notes.js` writes the
+note for each move: forks, pins, skewers, discovered attacks, hung pieces, allowed mates, and what the better move would have done. Mistake themes (hung
 piece, missed tactic/mate, allowed mate, blown advantage, opening/endgame errors) are detected from the
 engine's best moves and replies using the rules of chess.
 The **performance rating is a rough estimate** from average centipawn loss and can be off by hundreds of
@@ -78,14 +85,18 @@ It is not a promise of results.
 
 ## Computer levels
 
-Strength is set by a node budget (not time), so a slow phone plays as strongly as a laptop. `node scripts/calibrate-grid.mjs` plays many engine settings
-against each other and fits one rating scale (Bradley–Terry), anchored so that Stockfish's own limiter at UCI_Elo 2000 (60k nodes) = 2000; the levels use
-the setting that lands on each Elo. Measured on that scale: a purely random mover ≈ 800, 50% random moves ≈ 1450, one node ≈ 1870, 1k nodes ≈ 2250,
-10k ≈ 2680, 100k ≈ 2985. `npm run calibrate:levels` then checks neighbouring levels head to head (16 games each): every level beat the one below it.
-What to keep in mind: each number is good to about ±100; the spacing between neighbouring levels is approximate (levels weakened by random mistakes win or lose
-very lopsidedly against each other); the Elo is Stockfish's scale, not Chess.com, Lichess or FIDE; and the lowest level is simply a random mover.
-The legends are set to the peak rating of the player they are named after: that is their strength, not their style. Only Bobby Fischer has a style
-(see `client/src/fischer.js` for exactly what that means).
+Strength is set by a node budget (not time), so a slow phone plays as strongly as a laptop. The ladder starts below a random mover: the first two
+bots deliberately give pieces away (about 125 and 200), then come human-like bots that ask Stockfish for its five best moves and pick one by a
+softmax over the win-chance each loses, plus occasional slips that hang material (so they play sensible-looking moves with the odd mistake,
+instead of full-strength play with random junk). From 2000 up it is the engine at a bigger node budget. About 4,500 games between the settings
+were fitted on one scale (Bradley–Terry), anchored so that Stockfish's own limiter at UCI_Elo 2000 (60k nodes) = 2000 (`scripts/calibrate-ladder.mjs`,
+games in `calibration/`). What to keep in mind: each number is good to about ±80; it is Stockfish's scale, not Chess.com, Lichess or FIDE, and nothing was
+measured against people; a purely random mover measures about 350. The legends are set to the peak rating of the player they are named after: that is their
+strength, not their style. Only Bobby Fischer has a style (see `client/src/fischer.js`). Details and the full table are at the top of `client/src/levels.js`.
+
+**Your rating** starts at 100 and moves with a standard Elo update against the opponent's rating (bigger steps for your first 12 games). Opponents open
+as you beat the one below them (or reach within 150 of your rating). The post-game "estimated level" comes from `client/src/perf-model.js`: a curve fitted to the
+average centipawn loss of bots of known strength, shrunk toward your rating on short games.
 
 ## Deploying to Cloudflare (site + online rooms)
 

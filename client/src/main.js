@@ -8,6 +8,7 @@ import { session } from './session.js';
 import { teaching } from './teaching.js';
 
 document.documentElement.dataset.theme = get().settings.theme === 'light' ? 'light' : 'dark';
+document.documentElement.dataset.board = get().settings.board ?? 'green';
 
 // Screens load on demand (esbuild splits them into chunks), so the first screen downloads only what it needs.
 const routes = {

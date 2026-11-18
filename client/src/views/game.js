@@ -2,10 +2,12 @@
 import { Chess } from 'chess.js';
 import { h, clear, fmtClock, toast, uid } from '../util.js';
 import { Board, moveKind } from '../board.js';
+import { positions, stepView } from '../history.js';
 import { engine, LEVELS } from '../engine.js';
 import { net } from '../net.js';
 import { get, addGame, save, findGame } from '../store.js';
 import { applyResult } from '../rating.js';
+import { markBeaten } from '../ladder.js';
 import { play } from '../sound.js';
 import { teaching } from '../teaching.js';
 import { icon } from '../icons.js';
@@ -42,6 +44,7 @@ export function mount(root) {
   let clocks = { w: 0, b: 0 }; let lastTick = performance.now(); let timed = false;
   let hintUsed = false;
   let oppConnected = true; let drawOfferFromOpp = false; let takebackAsk = null; let takebackSent = false;
+  let viewPly = null; // null = the live position; otherwise how many half-moves of the game are shown (looking back)
   let moveSans = []; let startedAt = Date.now();
 
   root.append(h('div', { class: 'card' }, h('span', { class: 'spinner' }), ' Setting up the board…'));
@@ -80,6 +83,9 @@ export function mount(root) {
     dom.boardEl = h('div', { class: 'boardwrap' });
     dom.status = h('div', { class: 'banner', role: 'status', 'aria-live': 'polite' });
     dom.moves = h('div', { class: 'moves', 'aria-label': 'Moves' });
+    dom.nav = h('div', { class: 'movenav', role: 'group', 'aria-label': 'Look back through the moves' },
+      ...[['first', 'Start', 'start'], ['prev', 'Previous move', -1], ['next', 'Next move', 1], ['last', 'Back to the live position', 'live']].map(([ic, label, dir]) => h('button', { type: 'button', 'aria-label': label, title: label, onclick: () => stepTo(dir) }, icon(ic))),
+      (dom.liveBtn = h('button', { type: 'button', class: 'live-btn', onclick: () => stepTo('live') }, 'Back to live')));
     dom.controls = h('div', { class: 'controls' });
     dom.result = h('div', { class: 'stack' });
     root.append(h('div', { class: 'game' },
@@ -88,7 +94,7 @@ export function mount(root) {
         dom.boardEl,
         h('div', { class: 'pbar' }, h('div', {}, h('div', { class: 'who' }, dom.meName, dom.meRating), dom.meCap), dom.meClock))),
       h('div', { class: 'side stack' },
-        h('div', { class: 'card' }, dom.status, dom.controls, h('div', { style: { marginTop: '.8rem' } }, dom.moves)),
+        h('div', { class: 'card' }, dom.status, dom.controls, h('div', { style: { marginTop: '.8rem' } }, dom.nav, dom.moves)),
         dom.result)));
     dom.side = root.querySelector('.side');
     dom.side.insertBefore(teaching.card.el, dom.result); // inside the side panel, below the buttons, so fading never moves them
@@ -99,6 +105,7 @@ export function mount(root) {
 
   function setupBoard(orientation, fen) {
     board = new Board(dom.boardEl, { orientation, onMove: onUserMove });
+    board.onPremoveChange = () => renderStatus();
     if (fen) board.setPosition(fen);
     cleanups.push(() => board.destroy());
   }
@@ -217,7 +224,7 @@ export function mount(root) {
       net.on('opp_status', (s) => { oppConnected = s.connected; renderOppStatus(); }),
       net.on('game', (s) => { // we reconnected: take the server's word for the position
         clocks = { ...s.clocks }; chess = new Chess(); for (const san of s.moves) chess.move(san);
-        moveSans = chess.history(); takebackAsk = null; takebackSent = !!(s.takeback && s.takeback.by === G.color);
+        moveSans = chess.history(); viewPly = null; board.cancelPremove(); takebackAsk = null; takebackSent = !!(s.takeback && s.takeback.by === G.color);
         if (s.takeback && s.takeback.by !== G.color) takebackAsk = { plies: 1 };
         const l = chess.history({ verbose: true }).at(-1);
         board.setPosition(chess.fen(), { lastMove: l ? [l.from, l.to] : null });
@@ -228,7 +235,7 @@ export function mount(root) {
       net.on('takeback_cancelled', () => { takebackAsk = null; renderControls(); }),
       net.on('takeback_declined', (r) => { takebackSent = false; renderControls(); toast(r.reason || 'Takeback declined'); }),
       net.on('takeback', (msg) => { // both players agreed: the position goes back
-        takebackAsk = null; takebackSent = false; confirming = null;
+        takebackAsk = null; takebackSent = false; confirming = null; viewPly = null; board.cancelPremove();
         chess = new Chess(); for (const san of msg.moves) chess.move(san);
         moveSans = chess.history(); clocks = { ...msg.clocks };
         const l = chess.history({ verbose: true }).at(-1);
@@ -256,14 +263,13 @@ export function mount(root) {
     let mv;
     try { mv = chess.move(m); } catch { board.setPosition(chess.fen()); return; }
     board.setArrows([]); // a hint arrow is only good for the position it was drawn on
-    if (who === 'me') {
-      // the board already shows the piece moved by the user; just sync last-move/dests
-      board.setPosition(chess.fen(), { lastMove: [mv.from, mv.to] });
-    } else {
-      board.setPosition(chess.fen(), { lastMove: [mv.from, mv.to] });
-    }
     moveSans.push(mv.san);
-    play(moveKind(mv, chess));
+    const kind = moveKind(mv, chess);
+    if (viewPly === null) {
+      // the piece slides to its square; for the opponent's move the knock is heard as it lands
+      board.setPosition(chess.fen(), { lastMove: [mv.from, mv.to] });
+      if (who === 'me') play(kind); else setTimeout(() => play(kind), 200);
+    } else play(kind); // you are looking at an earlier position: the live board waits for you
     if (G.mode === 'computer' && timed && chess.history().length > 2) {
       clocks[mv.color] += G.inc * 1000;
     }
@@ -283,8 +289,10 @@ export function mount(root) {
       if (chess.isThreefoldRepetition()) return finish('1/2-1/2', 'threefold repetition');
       if (chess.isDrawByFiftyMoves()) return finish('1/2-1/2', 'fifty-move rule');
     }
-    board.setInteractive(chess.turn() === G.color ? G.color : null);
+    // your pieces stay touchable on the opponent's turn: a move you make then is a premove, played the moment it is legal
+    board.setInteractive(viewPly === null ? G.color : null);
     renderStatus();
+    if (viewPly === null && chess.turn() === G.color && board.hasPremove) setTimeout(() => { if (!over && viewPly === null && chess.turn() === G.color) board.firePremove(); }, 80);
     if (G.mode === 'computer' && chess.turn() !== G.color) engineTurn();
   }
 
@@ -300,6 +308,7 @@ export function mount(root) {
     if (over) return;
     over = true; thinking = false;
     teaching.card.hide();
+    board.cancelPremove();
     board.setInteractive(null);
     clearActive();
     if (G.mode === 'online') { clearOnline(); net.leave(); }
@@ -308,13 +317,14 @@ export function mount(root) {
     const outcome = result === '1/2-1/2' ? 'draw' : (result === '1-0') === (G.color === 'w') ? 'win' : 'loss';
 
     const pgn = serverPgn ?? buildPgn(result);
-    let record = null;
+    let record = null; let unlockedNow = null;
     if (!aborted && chess.history().length >= 2) {
       const pool = get().ratings[G.mode === 'online' ? 'online' : 'computer'];
       const tooShort = reason === 'resignation' && chess.history().length < 6; // a quick resign is not a real game
       const rated = !(G.mode === 'computer' && hintUsed) && !tooShort;
       let change = null;
       if (rated) change = applyResult(pool, G.opp.rating, outcome === 'win' ? 1 : outcome === 'draw' ? 0.5 : 0);
+      if (rated && G.mode === 'computer' && outcome === 'win' && G.level) unlockedNow = markBeaten(G.level.id);
       record = {
         id: G.id, t: Date.now(), mode: G.mode, color: G.color, playerName: G.me.name,
         opponent: { name: G.opp.name, rating: G.opp.rating, level: G.level?.id ?? null },
@@ -325,7 +335,7 @@ export function mount(root) {
       if (!findGame(record.id)) addGame(record); else save();
     }
     renderAll();
-    renderResult(record, outcome, aborted, reason);
+    renderResult(record, outcome, aborted, reason, unlockedNow);
   }
 
   function buildPgn(result) {
@@ -362,14 +372,52 @@ export function mount(root) {
   function renderMoves() {
     clear(dom.moves);
     const hist = chess.history();
-    for (let i = 0; i < hist.length; i += 2) {
-      dom.moves.append(
-        h('span', { class: 'n' }, `${i / 2 + 1}.`),
-        h('span', { class: `m ${i === hist.length - 1 ? 'cur' : ''}` }, hist[i]),
-        h('span', { class: `m ${i + 1 === hist.length - 1 ? 'cur' : ''}` }, hist[i + 1] ?? ''));
-    }
-    dom.moves.scrollTop = dom.moves.scrollHeight;
+    const shown = viewPly ?? hist.length;
+    const cell = (i) => (hist[i] === undefined ? h('span', {}) : h('span', { class: `m click ${i + 1 === shown ? 'cur' : ''}`, onclick: () => stepTo(i + 1), title: 'Look at the position after this move' }, hist[i]));
+    for (let i = 0; i < hist.length; i += 2) dom.moves.append(h('span', { class: 'n' }, `${i / 2 + 1}.`), cell(i), cell(i + 1));
+    const cur = dom.moves.querySelector('.cur');
+    if (cur) dom.moves.scrollTop = cur.offsetTop - dom.moves.clientHeight / 2; else dom.moves.scrollTop = dom.moves.scrollHeight;
+    // the little navigator
+    const [first, prev, next, last] = dom.nav.querySelectorAll('button:not(.live-btn)');
+    first.disabled = prev.disabled = shown <= 0;
+    next.disabled = last.disabled = viewPly === null;
+    dom.liveBtn.hidden = viewPly === null;
+    dom.nav.classList.toggle('behind', viewPly !== null);
   }
+
+  /** Look back (or forward) through the game. `dir`: -1, 1, 'start', 'live' or a number of half-moves. */
+  function stepTo(dir) {
+    if (!G) return;
+    const live = chess.history().length;
+    const next = stepView(viewPly, live, dir);
+    if (next === viewPly) return;
+    const far = Math.abs((next ?? live) - (viewPly ?? live)) > 1;
+    viewPly = next;
+    board.setArrows([]); board.cancelPremove();
+    if (viewPly === null) {
+      const l = chess.history({ verbose: true }).at(-1);
+      board.setPosition(chess.fen(), { lastMove: l ? [l.from, l.to] : null, animate: !far });
+      board.setInteractive(over ? null : G.color);
+      if (!over && chess.turn() === G.color && board.hasPremove) board.firePremove();
+    } else {
+      const p = positions(chess.history(), startFen())[viewPly];
+      board.setInteractive(null);
+      board.setPosition(p.fen, { lastMove: p.from ? [p.from, p.to] : null, animate: !far });
+    }
+    play('move');
+    renderMoves(); renderStatus();
+  }
+  const startFen = () => undefined;
+
+  // ← → ↑ ↓ and Home/End look back through the moves
+  const onKey = (e) => {
+    if (e.target.matches?.('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('.thow-backdrop:not([hidden])')) return;
+    const k = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: 'start', ArrowDown: 'live', Home: 'start', End: 'live' }[e.key];
+    if (k === undefined) return;
+    e.preventDefault(); stepTo(k);
+  };
+  window.addEventListener('keydown', onKey);
+  cleanups.push(() => window.removeEventListener('keydown', onKey));
 
   function renderStatus() {
     if (!G || over) return;
@@ -379,6 +427,8 @@ export function mount(root) {
     else if (chess.history().length === 0 && mine) t = G.time ? 'Your move — the clock starts after Black replies.' : 'Your move. Good luck!';
     else t = mine ? 'Your move' : G.mode === 'online' ? "Opponent's move" : `${G.opp.name} to move`;
     if (chess.inCheck()) t += ' — check!';
+    if (viewPly !== null) t = `Looking back at ${viewPly === 0 ? 'the starting position' : `move ${Math.ceil(viewPly / 2)}`} — press End or "Back to live" to return.`;
+    else if (board?.hasPremove) t += ' · premove set (click anywhere else to cancel)';
     dom.status.textContent = t;
     if (mine && chess.inCheck()) teaching.tips.once('check', 'You are in check: move the king, block the attack, or capture the attacker.');
     if (G.time && chess.history().length === 0 && mine && G.color === 'w') teaching.tips.once('clock', 'Your clock starts after Black replies to your first move.');
@@ -442,7 +492,7 @@ export function mount(root) {
     if (thinking) return;
     const n = chess.turn() === G.color ? 2 : 1;
     for (let i = 0; i < n; i++) chess.undo();
-    moveSans = chess.history(); hintUsed = true; // unrated from now on
+    moveSans = chess.history(); hintUsed = true; viewPly = null; board.cancelPremove(); // unrated from now on
     const l = chess.history({ verbose: true }).at(-1);
     board.setArrows([]);
     board.setPosition(chess.fen(), { lastMove: l ? [l.from, l.to] : null });
@@ -463,7 +513,7 @@ export function mount(root) {
     persist();
   }
 
-  function renderResult(record, outcome, aborted, reason) {
+  function renderResult(record, outcome, aborted, reason, unlockedNow = null) {
     clear(dom.controls);
     const title = aborted ? 'Game aborted' : outcome === 'win' ? 'You won!' : outcome === 'loss' ? 'You lost' : 'Draw';
     const why = reason ? reason.charAt(0).toUpperCase() + reason.slice(1) : '';
@@ -475,7 +525,9 @@ export function mount(root) {
       box.append(h('p', {}, `Rating: ${record.rating.before} → `, h('b', {}, String(record.rating.after)), ' ',
         h('span', { class: `delta ${d >= 0 ? 'up' : 'down'}` }, `(${d >= 0 ? '+' : ''}${d})`),
         h('span', { class: 'muted small' }, record.rating.pool === 'online' ? ' (your online rating)' : ' (your rating against the computer)')));
-    } else if (record && !record.rated) box.append(h('p', { class: 'muted' }, record.plies < 6 ? 'Too short to count for your rating.' : 'Unrated (hint or takeback used).'));
+    }
+    if (unlockedNow) box.append(h('p', { class: 'banner good' }, icon('trophy'), ` New opponent unlocked: ${unlockedNow.name} (${unlockedNow.elo})`));
+    if (record?.rating) { /* shown above */ } else if (record && !record.rated) box.append(h('p', { class: 'muted' }, record.plies < 6 ? 'Too short to count for your rating.' : 'Unrated (hint or takeback used).'));
     const actions = h('div', { class: 'controls' });
     if (record) {
       actions.append(h('a', { class: 'btn primary big', href: `#/review/${record.id}` }, icon('cap'), ' Review my game'));

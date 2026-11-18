@@ -3,15 +3,17 @@ import { uid } from './util.js';
 import { emptyLearn } from './lessons-logic.js';
 
 const KEY = 'openchess.v1';
+export const START_RATING = 100; // everyone starts at the bottom and works up
 const MAX_GAMES = 150;
 
 const defaults = () => ({
   player: { id: uid(16), name: `Guest${Math.floor(1000 + Math.random() * 9000)}` },
   ratings: {
-    computer: { r: 1000, games: 0, history: [] },
-    online: { r: 1000, games: 0, history: [] },
+    computer: { r: START_RATING, games: 0, history: [] },
+    online: { r: START_RATING, games: 0, history: [] },
   },
-  settings: { sound: true, theme: 'dark', autoReview: false },
+  ladder: { beaten: {} }, // computer opponents you have beaten (by level id); opens the next one up
+  settings: { sound: true, theme: 'dark', autoReview: false, board: 'green', unlockAll: false },
   games: [], // newest first
   mistakes: [], // puzzles from your own blunders
   learn: emptyLearn(), // lesson progress, spaced-repetition boxes and the daily streak
@@ -24,8 +26,14 @@ function load() {
     const raw = JSON.parse(localStorage.getItem(KEY));
     if (raw && raw.player) {
       const d = defaults();
+      // older saves started at 1000: if you had not played a rated game yet, start from the bottom like everyone else
+      for (const k of ['computer', 'online']) if (raw.ratings?.[k] && raw.ratings[k].games === 0 && raw.ratings[k].r === 1000) raw.ratings[k] = { ...raw.ratings[k], r: START_RATING };
+      // beaten opponents, remembered from the games you already played
+      const beaten = { ...(raw.ladder?.beaten ?? {}) };
+      for (const g of raw.games ?? []) if (g.mode === 'computer' && g.outcome === 'win' && g.rated && g.opponent?.level) beaten[g.opponent.level] = true;
       return {
         ...d, ...raw,
+        ladder: { beaten },
         ratings: { ...d.ratings, ...raw.ratings },
         learn: { ...d.learn, ...(raw.learn ?? {}), streak: { ...d.learn.streak, ...(raw.learn?.streak ?? {}) } }, // older saves had a different shape
         settings: { ...d.settings, ...raw.settings },

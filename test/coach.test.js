@@ -133,8 +133,8 @@ test('explanations use correct grammar and say something true when the evaluatio
   const ply = { ...review.plies[5], tags: [], cls: 'inaccuracy', cpBefore: 80, cpAfter: 50, refute: null };
   const text = explainPly(ply, fens[5], fens[6]);
   assert.match(text, /was an inaccuracy/);
-  assert.match(text, /let your position slip a little \(still slightly better\)/);
-  assert.doesNotMatch(text, /a inaccuracy|from slightly better to slightly better/);
+  assert.match(text, /winning chances went from \d+% to \d+%/);
+  assert.doesNotMatch(text, /a inaccuracy|undefined|NaN/);
 });
 
 test('a resignation is described as one, and short games are flagged', () => {

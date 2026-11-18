@@ -43,10 +43,10 @@ export async function reviewPgn(pgn, { playerColor = 'w', priorRating, depth = 1
     const fen = fens[i];
     let e = terminalEval(fen) ?? cache.get(fen.split(' ').slice(0, 4).join(' '));
     if (!e) {
-      const { lines } = await engine.search(fen, { depth, movetime: 1800 });
-      const top = lines[0];
+      const { lines } = await engine.search(fen, { depth, movetime: 1800, multipv: 2 });
+      const top = lines[0]; const alt = lines[1];
       e = top
-        ? { cp: top.cp, mate: top.mate, best: top.pv[0] ?? null, pv: top.pv, depth: top.depth }
+        ? { cp: top.cp, mate: top.mate, best: top.pv[0] ?? null, pv: top.pv, depth: top.depth, alt: alt ? { cp: alt.cp, best: alt.pv[0] ?? null } : null }
         : { cp: 0, mate: null, best: null, pv: [], depth: 0 };
       cache.set(fen.split(' ').slice(0, 4).join(' '), e);
     }

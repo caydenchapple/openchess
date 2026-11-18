@@ -43,7 +43,7 @@ test('win probability, accuracy and classification maths', () => {
 });
 
 test('performance estimate is monotonic and shrinks on short games', () => {
-  const a = estimatePerformance(20, 40); const b = estimatePerformance(60, 40); const c = estimatePerformance(120, 40);
+  const a = estimatePerformance(20, 40, 1000); const b = estimatePerformance(60, 40, 1000); const c = estimatePerformance(120, 40, 1000);
   assert.ok(a > b && b > c);
   assert.ok(Math.abs(estimatePerformance(20, 4, 1000) - 1000) < Math.abs(a - 1000));
 });

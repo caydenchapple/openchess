@@ -3,6 +3,7 @@
 import { Chess } from 'chess.js';
 import { uciToMove, THEME_LABELS, THEME_ADVICE } from './analysis-core.js';
 import { OPENING_NOTES, FALLBACK_NOTES } from './opening-notes.js';
+import { moveNote, highlights } from './notes.js';
 import { round } from './util.js';
 
 const NAME = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
@@ -49,42 +50,9 @@ export function describeMove(m, fenBefore) {
   return out.join(' and ');
 }
 
-/** Why was this player move bad? Builds a short explanation from engine data and the rules. */
+/** The note for one of the player's moves (see notes.js for how it is built). */
 export function explainPly(ply, fenBefore, fenAfter) {
-  const played = uciToMove(fenBefore, ply.uci);
-  const best = ply.bestUci ? uciToMove(fenBefore, ply.bestUci) : null;
-  const reply = ply.refute ? uciToMove(fenAfter, ply.refute) : null;
-  const tags = ply.tags ?? [];
-  const parts = [];
-
-  if (tags.includes('missed-mate') && best) {
-    parts.push(`You had a forced checkmate here, starting with ${best.san}.`);
-    parts.push('When the enemy king is exposed, always check every check first.');
-  } else if (tags.includes('allowed-mate')) {
-    parts.push(`${ply.san} allows a forced checkmate${reply ? `, starting with ${reply.san}` : ''}.`);
-    if (best) parts.push(`${best.san} kept you safe.`);
-    parts.push('Before moving, look at your opponent\'s checks and which pieces guard your king.');
-  } else if (tags.includes('hung-piece') && reply) {
-    const lost = NAME[reply.captured];
-    parts.push(reply.to === played?.to
-      ? `The ${NAME[played.piece]} you moved to ${played.to} can simply be captured: ${reply.san} wins a ${lost}.`
-      : `${ply.san} leaves a ${lost} undefended — your opponent can reply ${reply.san} and win it.`);
-    if (best) parts.push(`${best.san} was better${describeMove(best) ? ` (it ${describeMove(best)})` : ''}.`);
-  } else if (tags.includes('missed-tactic') && best) {
-    parts.push(`There was a tactic: ${best.san} ${describeMove(best)}.`);
-    parts.push('Scan checks, captures and threats — for both sides — before choosing a quiet move.');
-  } else if (tags.includes('blown-advantage')) {
-    parts.push(`You were ${standing(ply.cpBefore)}, but ${ply.san} let it slip (now ${standing(ply.cpAfter)}).`);
-    if (best) parts.push(`${best.san} kept the advantage${describeMove(best) ? ` — it ${describeMove(best)}` : ''}.`);
-  } else {
-    const before = standing(ply.cpBefore); const after = standing(ply.cpAfter);
-    parts.push(`${ply.san} was ${an(ply.cls)} ${ply.cls}: ${before === after ? `it let your position slip a little (still ${after})` : `the position went from ${before} to ${after} for you`}.`);
-    if (best) parts.push(`The engine preferred ${best.san}${describeMove(best) ? `, which ${describeMove(best)}` : ''}.`);
-    if (reply) parts.push(`After that, your opponent can play ${reply.san}${describeMove(reply) ? `, which ${describeMove(reply)}` : ', which is strong'}.`);
-  }
-  if (ply.phase === 'opening' && !tags.includes('missed-mate')) parts.push('In the opening: develop pieces, fight for the centre, castle early.');
-  if (ply.phase === 'endgame') parts.push('In endgames, activate your king and think about pawn races and the opposition.');
-  return parts.join(' ');
+  return moveNote(ply, { fenBefore, fenAfter, mine: true, withLine: true }).join(' ');
 }
 
 const THEME_LESSONS = {
@@ -176,16 +144,26 @@ export function reviewReport({ review, game, fens }) {
     lines.push(`Your opponent also slipped with ${moveLabel(theirWorst.i, theirWorst.san)} — check the review to see if you could have punished it.`);
   }
   const c = mine.counts;
-  lines.push(`You made ${plural(c.blunder, 'blunder')}, ${plural(c.mistake, 'mistake')} and ${plural(c.inaccuracy, 'inaccuracy').replace('inaccuracys', 'inaccuracies')}.`);
+  // how the game went: who was better when, and whether it was converted
+  const wpMine = (p) => (p.color === me ? p.wpAfter : 100 - p.wpAfter);
+  const peak = plies.reduce((best, p) => (wpMine(p) > wpMine(best) ? p : best), plies[0]);
+  const low = plies.reduce((best, p) => (wpMine(p) < wpMine(best) ? p : best), plies[0]);
+  if (outcome !== 'win' && wpMine(peak) >= 80 && plies.length > 12) lines.push(`You had a winning position after ${moveLabel(peak.i, peak.san)}, but it was not converted.`);
+  else if (outcome === 'win' && wpMine(low) <= 25 && plies.length > 12) lines.push(`You were in trouble after ${moveLabel(low.i, low.san)} and still came back to win.`);
+  const nBrill = c.brilliant ?? 0; const nGreat = c.great ?? 0;
+  if (nBrill || nGreat) lines.push(`You found ${[nBrill && plural(nBrill, 'brilliant move'), nGreat && plural(nGreat, 'great move')].filter(Boolean).join(' and ')}.`);
+  lines.push(`You made ${plural(c.blunder, 'blunder')}, ${plural(c.mistake, 'mistake')}${c.miss ? `, ${plural(c.miss, 'miss').replace('misss', 'misses')}` : ''} and ${plural(c.inaccuracy, 'inaccuracy').replace('inaccuracys', 'inaccuracies')}.`);
 
   // ----- strengths
   const strengths = [];
   if (mine.accuracy >= 85) strengths.push('Very accurate play overall — most of your moves matched the engine\'s ideas.');
+  if ((c.brilliant ?? 0) > 0) strengths.push(`${plural(c.brilliant, 'brilliant move')}: you found a sacrifice that really works — that is rare at any level.`);
+  if ((c.great ?? 0) > 0) strengths.push(`${plural(c.great, 'great move')}: you found the only move that held the position together.`);
   if (c.blunder === 0 && myPlies.length >= 10) strengths.push('No blunders: you kept your pieces safe.');
   if (mine.phases.opening >= 85) strengths.push('A solid opening with good development.');
   if (mine.phases.middlegame >= 85) strengths.push('Strong middlegame: you handled the tactics well.');
   if (mine.phases.endgame >= 85) strengths.push('Good endgame technique.');
-  if (c.best + c.book >= myPlies.length * 0.5 && myPlies.length >= 10) strengths.push(`You found the engine's top choice (or book move) ${c.best + c.book} times out of ${myPlies.length}.`);
+  if (c.best + c.book + (c.great ?? 0) + (c.brilliant ?? 0) >= myPlies.length * 0.5 && myPlies.length >= 10) strengths.push(`You found the engine's top choice (or a book move) ${c.best + c.book + (c.great ?? 0) + (c.brilliant ?? 0)} times out of ${myPlies.length}.`);
   if (outcome === 'win' && mine.accuracy < 70) strengths.push('You stayed in the game and took your chances.');
   if (!strengths.length) strengths.push('You played the game to the end — every review makes the patterns easier to spot.');
 
@@ -219,7 +197,8 @@ export function reviewReport({ review, game, fens }) {
   // ----- key moments
   const keyMoments = review.keyMoments.map((i) => ({ id: i, explanation: explainPly(plies[i], fens[i], fens[i + 1]) }));
 
-  return { summary: lines.join(' '), strengths, lessons, opening, keyMoments };
+  const best = highlights(review, me).map((i) => ({ id: i, explanation: explainPly(plies[i], fens[i], fens[i + 1]) }));
+  return { summary: lines.join(' '), strengths, lessons, opening, keyMoments, highlights: best };
 }
 
 function openingComment(review, game) {
