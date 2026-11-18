@@ -602,7 +602,7 @@ h1 { letter-spacing: -.035em; }
 /* header: translucent bar, tab-style links */
 .top { background: color-mix(in srgb, var(--bg) 80%, transparent); backdrop-filter: blur(12px) saturate(140%); border-bottom: 1px solid var(--line); box-shadow: none; }
 .brand { font-weight: 600; letter-spacing: -.02em; gap: .55rem; }
-.logo { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-size: 1.05rem; line-height: 1; }
+.logo { display: block; width: 32px; height: 32px; border-radius: 8px; flex: none; }
 .top nav { gap: 2px; }
 .top nav a { border-radius: 8px; font-size: .9rem; font-weight: 500; min-height: 40px; padding: 0 12px; transition: background-color 150ms, color 150ms; }
 .top nav a.active { background: var(--bg3); color: var(--text); box-shadow: var(--shadow-xs); }
@@ -670,8 +670,7 @@ cg-board { border-radius: 10px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .5), var(--s
 .hero.simple { grid-template-columns: minmax(0, 1fr) minmax(280px, 480px); gap: 48px; padding: 40px 0 32px; }
 .hero.simple h1 { font-size: clamp(2.5rem, 6.4vw, 4.4rem); line-height: 1.02; letter-spacing: -.045em; margin: 16px 0 16px; }
 .hero.simple .lead { font-size: 1.2rem; line-height: 1.55; max-width: 30rem; margin-bottom: 28px; }
-.hero-badge { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg2); font-size: .8rem; font-weight: 500; color: var(--muted); box-shadow: var(--shadow-xs); }
-.hero-badge i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.hero-logo { display: block; width: 72px; height: 72px; border-radius: 18px; box-shadow: var(--shadow-lg); }
 .scene { position: relative; width: 100%; max-width: 520px; aspect-ratio: 1; justify-self: center; border-radius: 20px; border: 1px solid var(--line); overflow: hidden; background: radial-gradient(120% 90% at 50% 30%, #202020 0%, #0d0d0d 70%); box-shadow: var(--shadow-lg); }
 :root[data-theme='light'] .scene { background: radial-gradient(120% 90% at 50% 30%, #ffffff 0%, #e7e7ea 75%); }
 .scene .fallback, .scene canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -688,7 +687,7 @@ cg-board { border-radius: 10px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .5), var(--s
 .point h3 { font-size: 1.05rem; margin: 0 0 6px; }
 .point p { font-size: .925rem; line-height: 1.55; }
 .btn.huge { box-shadow: 0 1px 2px rgba(0,0,0,.35), 0 8px 24px -8px color-mix(in srgb, var(--accent) 55%, transparent); }
-@media (max-width: 900px) { .hero.simple { grid-template-columns: minmax(0, 1fr); gap: 32px; padding: 16px 0 24px; text-align: center; } .scene { max-width: 400px; } .point { text-align: center; } .point-icon { margin-inline: auto; } .hero-badge { margin-inline: auto; } }
+@media (max-width: 900px) { .hero.simple { grid-template-columns: minmax(0, 1fr); gap: 32px; padding: 16px 0 24px; text-align: center; } .scene { max-width: 400px; } .point { text-align: center; } .point-icon { margin-inline: auto; } .hero-logo { margin-inline: auto; } }
 
 
 /* ================= motion: springs, staggered entrances, badges ================= */

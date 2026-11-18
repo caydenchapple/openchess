@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="OpenChess logo: a knight on a chessboard">
+<title>OpenChess</title>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1"><stop offset="0" stop-color="#b4e26f"/><stop offset=".45" stop-color="#6fae38"/><stop offset="1" stop-color="#2f5e17"/></linearGradient>
+  <radialGradient id="sheen" cx=".28" cy=".12" r=".75"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".5" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  <radialGradient id="vig" cx=".5" cy=".5" r=".75"><stop offset=".6" stop-color="#0d2005" stop-opacity="0"/><stop offset="1" stop-color="#0d2005" stop-opacity=".55"/></radialGradient>
+  <linearGradient id="horse" x1="0" y1="0" x2="1" y2=".9"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#f3eddb"/><stop offset="1" stop-color="#c9bf9f"/></linearGradient>
+  <linearGradient id="shade" x1="0" y1="0" x2="1" y2="0"><stop offset=".25" stop-color="#4a3b17" stop-opacity="0"/><stop offset="1" stop-color="#4a3b17" stop-opacity=".5"/></linearGradient>
+  <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a4128"/><stop offset=".5" stop-color="#3b2916"/><stop offset="1" stop-color="#22160a"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe9a0"/><stop offset="1" stop-color="#c58d1f"/></linearGradient>
+  <pattern id="check" width="64" height="64" patternUnits="userSpaceOnUse"><rect width="32" height="32" fill="#fff" opacity=".07"/><rect x="32" y="32" width="32" height="32" fill="#fff" opacity=".07"/><rect x="32" width="32" height="32" fill="#000" opacity=".06"/><rect y="32" width="32" height="32" fill="#000" opacity=".06"/></pattern>
+  <filter id="blur6" x="-30%" y="-60%" width="160%" height="220%"><feGaussianBlur stdDeviation="6"/></filter>
+  <filter id="drop" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#0b1a04" flood-opacity=".5"/></filter>
+  <clipPath id="icon"><rect width="512" height="512" rx="116"/></clipPath>
+  <clipPath id="slab"><polygon points="112,372 400,372 456,442 56,442"/></clipPath>
+</defs>
+<g clip-path="url(#icon)">
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#check)"/>
+  <rect width="512" height="512" fill="url(#sheen)"/>
+  <rect width="512" height="512" fill="url(#vig)"/>
+  <circle cx="256" cy="236" r="190" fill="#0d2005" opacity=".18" filter="url(#blur6)"/>
+  <!-- the board slab the knight stands on -->
+  <ellipse cx="256" cy="464" rx="200" ry="18" fill="#06120a" opacity=".5" filter="url(#blur6)"/>
+  <polygon points="56,442 456,442 459,470 53,470" fill="url(#wood)"/>
+  <polygon points="56,442 456,442 456,445 56,445" fill="#fff" opacity=".18"/>
+  <g clip-path="url(#slab)"><polygon points="112.0,372.0 160.0,372.0 147.6,395.3 93.3,395.3" fill="#e9efcf"/><polygon points="160.0,372.0 208.0,372.0 201.8,395.3 147.6,395.3" fill="#6f9a4a"/><polygon points="208.0,372.0 256.0,372.0 256.0,395.3 201.8,395.3" fill="#e9efcf"/><polygon points="256.0,372.0 304.0,372.0 310.2,395.3 256.0,395.3" fill="#6f9a4a"/><polygon points="304.0,372.0 352.0,372.0 364.4,395.3 310.2,395.3" fill="#e9efcf"/><polygon points="352.0,372.0 400.0,372.0 418.7,395.3 364.4,395.3" fill="#6f9a4a"/><polygon points="93.3,395.3 147.6,395.3 135.1,418.7 74.7,418.7" fill="#6f9a4a"/><polygon points="147.6,395.3 201.8,395.3 195.6,418.7 135.1,418.7" fill="#e9efcf"/><polygon points="201.8,395.3 256.0,395.3 256.0,418.7 195.6,418.7" fill="#6f9a4a"/><polygon points="256.0,395.3 310.2,395.3 316.4,418.7 256.0,418.7" fill="#e9efcf"/><polygon points="310.2,395.3 364.4,395.3 376.9,418.7 316.4,418.7" fill="#6f9a4a"/><polygon points="364.4,395.3 418.7,395.3 437.3,418.7 376.9,418.7" fill="#e9efcf"/><polygon points="74.7,418.7 135.1,418.7 122.7,442.0 56.0,442.0" fill="#e9efcf"/><polygon points="135.1,418.7 195.6,418.7 189.3,442.0 122.7,442.0" fill="#6f9a4a"/><polygon points="195.6,418.7 256.0,418.7 256.0,442.0 189.3,442.0" fill="#e9efcf"/><polygon points="256.0,418.7 316.4,418.7 322.7,442.0 256.0,442.0" fill="#6f9a4a"/><polygon points="316.4,418.7 376.9,418.7 389.3,442.0 322.7,442.0" fill="#e9efcf"/><polygon points="376.9,418.7 437.3,418.7 456.0,442.0 389.3,442.0" fill="#6f9a4a"/></g>
+  <polygon points="112,372 400,372 456,442 56,442" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="2"/>
+  <!-- the knight -->
+  <ellipse cx="248" cy="410" rx="140" ry="15" fill="#0b1a04" opacity=".42" filter="url(#blur6)"/>
+  <g transform="translate(46 30) scale(9.7)" stroke-linecap="round" stroke-linejoin="round" filter="url(#drop)">
+    <path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21" fill="url(#horse)" stroke="#1a230f" stroke-width="1.05"/>
+    <path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21" fill="url(#shade)"/>
+    <path d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3" fill="url(#horse)" stroke="#1a230f" stroke-width="1.05"/>
+    <path d="M11 31c1.2-.2 1.6.4 3.2-.8 2.6-2 3.4-3.2 6-5.4" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width=".55"/>
+    <path d="M16.4 14.2c.8-1.6 1.9-3 3.2-4.2" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width=".6"/>
+    <path d="M25.3 11.6c2.7 1 5.2 2.6 7.2 5.2M26.6 13.2c3 1.4 5.2 3.6 6.8 7M27.2 15.8c3 2.2 4.7 5.2 5.4 8.6M26.8 18.8c2.4 2.6 3.6 5.6 4 9.4M25.6 22c1.6 2.7 2.4 5.5 2.6 8.8" fill="none" stroke="#6b5a2a" stroke-opacity=".55" stroke-width=".5"/>
+    <path d="M10.3 19.9c1.9-1 3.6-.9 5.1.3M9 22c2-1.1 4-.8 5.5.6" fill="none" stroke="url(#gold)" stroke-width="1"/>
+    <circle cx="12.6" cy="20.3" r=".85" fill="url(#gold)" stroke="#7a5412" stroke-width=".2"/>
+    <path d="M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0z" fill="#1a230f" transform="translate(.4 -.1)"/><circle cx="9.35" cy="24.95" r=".2" fill="#fff"/>
+    <path d="m14.933 15.75a.5 1.5 30 1 1-.866-.5.5 1.5 30 1 1 .866.5z" fill="#1a230f"/>
+    <path d="M15 39h23" stroke="#8d8566" stroke-opacity=".7" stroke-width=".5" fill="none"/>
+  </g>
+</g>
+<rect x="3" y="3" width="506" height="506" rx="113" fill="none" stroke="#fff" stroke-opacity=".38" stroke-width="3"/>
+<rect x="1" y="1" width="510" height="510" rx="115" fill="none" stroke="#0d2005" stroke-opacity=".5" stroke-width="2"/>
+</svg>

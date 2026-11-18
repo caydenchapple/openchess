@@ -21,7 +21,7 @@ export function mount(root) {
   root.append(h('div', { class: 'home' },
     h('section', { class: 'hero simple' },
       h('div', { class: 'stack' },
-        h('span', { class: 'hero-badge' }, h('i'), 'Free, open source, no sign-up'),
+        h('img', { class: 'hero-logo', src: '/logo.svg', alt: 'OpenChess', width: '72', height: '72' }),
         h('h1', {}, 'Play chess'),
         h('p', { class: 'lead' }, 'It\'s free. No sign-up. Press the button, then choose who you want to play.'),
         unfinished
