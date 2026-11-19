@@ -98,3 +98,21 @@ test('buildReview flags a hung queen as a blunder with themes, and survives comp
   assert.equal(h.plies[5].cls, 'blunder');
   assert.ok(JSON.stringify(compactReview(r)).length < JSON.stringify(r).length);
 });
+
+test('ratings: new players move fast, settled players move slowly, and the step is capped', async () => {
+  const { applyResult, currentRd, isProvisional, nextTitle, title } = await import('../client/src/rating.js');
+  const fresh = () => ({ r: 100, games: 0, history: [] });
+  const a = fresh(); const first = applyResult(a, 400, 1);
+  assert.ok(first.delta > 80 && first.delta <= 200, `first win moved ${first.delta}`);
+  assert.ok(isProvisional(a)); assert.ok(a.rd < 350);
+  const settled = { r: 1000, rd: 50, games: 60, history: [{ t: Date.now(), r: 1000 }] };
+  const d = applyResult(settled, 1000, 1).delta;
+  assert.ok(d > 0 && d < 15, `settled win moved ${d}`);
+  for (let i = 0; i < 12; i++) applyResult(a, 400, i % 2);
+  assert.ok(!isProvisional(a), 'about a dozen games settle the number');
+  const old = { r: 1000, rd: 50, games: 60, history: [{ t: Date.now() - 200 * 86_400_000, r: 1000 }] };
+  assert.ok(currentRd(old) > 100, 'doubt grows back after a long break');
+  assert.equal(title(1250), 'Club player');
+  assert.deepEqual(nextTitle(750), { next: 'Improver', at: 900, pct: 50 });
+  assert.equal(nextTitle(2500), null);
+});

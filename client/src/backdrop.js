@@ -4,7 +4,7 @@ import { get } from './store.js';
 let inst = null; let loading = false; let want = false;
 const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 // the pieces are for the calm pages; while you play, review or work through a lesson they stay out of the way
-const QUIET = ['game', 'review', 'train', 'join'];
+const QUIET = ['game', 'review', 'train', 'join', 'rain'];
 
 export function backdropWanted(key, params = []) {
   if (!get().settings.floatingPieces || calm()) return false;

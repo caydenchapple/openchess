@@ -3,7 +3,7 @@ import { h, clear, toast, round, twoStep } from '../util.js';
 import { get, save, setName, setSetting, setAvatar, exportData, importData, wipe } from '../store.js';
 import { avatarEl, paintAvatar, PRESETS, shrinkImage, DEFAULT_AVATAR } from '../avatars.js';
 import { aggregate, sparkline } from '../stats.js';
-import { isProvisional, title } from '../rating.js';
+import { isProvisional, title, nextTitle, certainty, peakRating } from '../rating.js';
 import { THEME_LABELS, THEME_ADVICE } from '../analysis-core.js';
 import { trainingPlan, openingAdvice } from '../coach.js';
 import { icon } from '../icons.js';
@@ -14,11 +14,20 @@ export function mount(root) {
   const view = h('div', { class: 'stack' });
   root.append(view);
 
-  const ratingCard = (label, pool) => h('div', { class: 'card stat' },
-    h('div', { class: 'l' }, label),
-    h('div', { class: 'v' }, String(pool.r)),
-    h('div', { class: 'l' }, `${title(pool.r)} · ${pool.games} rated game${pool.games === 1 ? '' : 's'}${isProvisional(pool) ? ' · still settling' : ''}`),
-    pool.history.length >= 2 ? sparkline(pool.history.slice(-40).map((x) => x.r)) : null);
+  // your rating, how sure it is, how far to the next title, and your record in that pool
+  const ratingCard = (label, pool, key) => {
+    const rec = { w: 0, d: 0, l: 0 };
+    for (const g of st.games) if (g.rating?.pool === key) rec[g.outcome === 'win' ? 'w' : g.outcome === 'draw' ? 'd' : 'l'] += 1;
+    const nxt = nextTitle(pool.r); const settling = isProvisional(pool);
+    return h('div', { class: 'card stat rate' },
+      h('div', { class: 'l' }, label),
+      h('div', { class: 'v' }, String(pool.r), h('span', { class: 'pm', title: 'How sure this number is. It narrows as you play.' }, ` ±${certainty(pool)}`)),
+      h('div', { class: 'l' }, `${title(pool.r)} · ${pool.games} rated game${pool.games === 1 ? '' : 's'}${settling ? ' · still settling' : ''}`),
+      nxt && h('div', { class: 'rate-next' }, h('div', { class: 'rate-bar', role: 'progressbar', 'aria-valuenow': String(nxt.pct), 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-label': `Progress to ${nxt.next}` }, h('i', { style: { width: `${nxt.pct}%` } })),
+        h('span', { class: 'muted small' }, `${nxt.next} at ${nxt.at}`)),
+      pool.history.length >= 2 ? sparkline(pool.history.slice(-40).map((x) => x.r)) : null,
+      pool.games ? h('div', { class: 'rate-rec muted small' }, `Peak ${peakRating(pool)} · ${rec.w} won, ${rec.d} drawn, ${rec.l} lost`) : null);
+  };
 
   const nameSlot = h('div', {});
   const showName = () => {
@@ -41,8 +50,8 @@ export function mount(root) {
 
   view.append(header,
     h('div', { class: 'grid three' },
-      ratingCard('Rating vs computer', st.ratings.computer),
-      ratingCard('Online rating', st.ratings.online),
+      ratingCard('Rating vs computer', st.ratings.computer, 'computer'),
+      ratingCard('Online rating', st.ratings.online, 'online'),
       h('div', { class: 'card stat' }, h('div', { class: 'l' }, 'Estimated performance'),
         h('div', { class: 'v' }, agg.performance ?? '–'),
         h('div', { class: 'l' }, agg.reviewed ? `average of your last ${Math.min(10, agg.reviewed)} reviewed games` : 'Review a game to see this'),

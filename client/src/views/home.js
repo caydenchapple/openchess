@@ -31,6 +31,7 @@ export function mount(root) {
           : h('a', { class: 'btn primary huge', href: '#/play' }, icon('play'), ' Play now'),
         h('div', { class: 'learn-cta' },
           h('a', { class: 'btn big', href: '#/learn' }, icon('cap'), ' Train with a plan'),
+          h('a', { class: 'btn big', href: '#/rain' }, icon('target'), ' Piece Rain'),
           (() => { const s = currentStreak(st.learn.streak, dayKey()); return s.count ? h('span', { class: 'streak-pill' }, icon('flame', 16), ` ${s.count}-day streak`) : null; })()),
         lastReviewable && h('p', { class: 'small-links' }, h('a', { href: '#/history' }, 'See my games'))),
       scene),
@@ -67,7 +68,7 @@ export function mountAbout(root) {
     h('h3', {}, 'Computer levels'),
     h('p', {}, 'Level strengths were measured by playing the settings against each other, on Stockfish\'s Elo scale, which is not the same as a Chess.com, Lichess or FIDE rating. Legends such as Carlsen or Kasparov are set to that player\'s peak rating, so the strength matches but the style does not. Bobby Fischer is the exception: his bot follows his known openings and his taste for bishops and the initiative, but it is an approximation, not a copy.'),
     h('h3', {}, 'Ratings'),
-    h('p', {}, 'Your rating is a local Elo stored in your browser (separate pools for computer and online games), so it is not comparable with FIDE, Lichess or Chess.com ratings and cannot be verified by others.'),
+    h('p', {}, 'Your rating is a local, Glicko-style rating stored in your browser (separate pools for computer and online games): a number plus how sure we are of it, which moves fast in your first games and settles after about ten. It is not comparable with FIDE, Lichess or Chess.com ratings and cannot be verified by others.'),
     h('h3', {}, 'Privacy'),
     h('p', {}, 'No accounts, no cookies, no analytics. Games and settings are saved in localStorage. Reviews, coaching and training run entirely in your browser.'),
     h('p', {}, h('a', { href: '#/play' }, 'Play a game →'))));

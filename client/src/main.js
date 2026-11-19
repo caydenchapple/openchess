@@ -22,6 +22,7 @@ const routes = {
   review: { load: () => import('./views/review.js'), nav: 'history', wide: true },
   history: { load: () => import('./views/history.js'), nav: 'history' },
   learn: { load: () => import('./views/learn.js'), nav: 'learn', wide: true },
+  rain: { load: () => import('./views/rain.js'), nav: '' },
   friends: { load: () => import('./views/friends.js'), nav: 'friends' },
   train: { load: () => import('./views/train.js'), nav: 'learn', wide: true },
   profile: { load: () => import('./views/profile.js'), nav: 'profile' },

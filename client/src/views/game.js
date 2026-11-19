@@ -325,7 +325,7 @@ export function mount(root) {
       const tooShort = reason === 'resignation' && chess.history().length < 6; // a quick resign is not a real game
       const rated = !(G.mode === 'computer' && hintUsed) && !tooShort;
       let change = null;
-      if (rated) change = applyResult(pool, G.opp.rating, outcome === 'win' ? 1 : outcome === 'draw' ? 0.5 : 0);
+      if (rated) change = applyResult(pool, G.opp.rating, outcome === 'win' ? 1 : outcome === 'draw' ? 0.5 : 0, { human: G.mode === 'online' });
       if (rated && G.mode === 'computer' && outcome === 'win' && G.level) unlockedNow = markBeaten(G.level.id);
       record = {
         id: G.id, t: Date.now(), mode: G.mode, color: G.color, playerName: G.me.name,
@@ -529,6 +529,7 @@ export function mount(root) {
       box.append(h('p', {}, `Rating: ${record.rating.before} → `, h('b', {}, String(record.rating.after)), ' ',
         h('span', { class: `delta ${d >= 0 ? 'up' : 'down'}` }, `(${d >= 0 ? '+' : ''}${d})`),
         h('span', { class: 'muted small' }, record.rating.pool === 'online' ? ' (your online rating)' : ' (your rating against the computer)')));
+      if (record.rating.titleAfter && record.rating.titleAfter !== record.rating.titleBefore && d > 0) box.append(h('p', { class: 'banner good' }, icon('trophy'), ` You are now a ${record.rating.titleAfter}`));
     }
     if (unlockedNow) box.append(h('p', { class: 'banner good' }, icon('trophy'), ` New opponent unlocked: ${unlockedNow.name} (${unlockedNow.elo})`));
     if (record?.rating) { /* shown above */ } else if (record && !record.rated) box.append(h('p', { class: 'muted' }, record.plies < 6 ? 'Too short to count for your rating.' : 'Unrated (hint or takeback used).'));

@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { Room, CODE_RE } from './room.js';
 import { TIME_CONTROLS } from './game.js';
 import { Hub, FRIEND_RE } from './friends.js';
+import { Scores, routeScores, emptyBoards } from './scores.js';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -22,7 +24,14 @@ export class Rooms {
   get size() { return this.map.size; }
 }
 
-export function createApp({ rooms = new Rooms() } = {}) {
+/** Leaderboard scores: in memory, and in a JSON file too when SCORES_FILE is set (so they survive a restart). */
+export function makeScores(file = process.env.SCORES_FILE) {
+  let data = emptyBoards();
+  if (file) { try { data = { ...data, ...JSON.parse(readFileSync(file, 'utf8')) }; } catch { /* first run */ } }
+  return new Scores(data, { save: (d) => { if (file) { try { writeFileSync(file, JSON.stringify(d)); } catch { /* read-only disk */ } } } });
+}
+
+export function createApp({ rooms = new Rooms(), scores = makeScores() } = {}) {
   const app = express();
   app.disable('x-powered-by');
 
@@ -41,6 +50,11 @@ export function createApp({ rooms = new Rooms() } = {}) {
       'Referrer-Policy': 'no-referrer',
     });
     next();
+  });
+
+  app.use('/scores', express.json({ limit: '2kb' }), async (req, res) => {
+    const { status, json } = await routeScores(scores, req.method, req.path, new URLSearchParams(req.query), req.body);
+    res.status(status).json(json);
   });
 
   app.get('/api/status', (req, res) => res.json({ rooms: rooms.size, timeControls: TIME_CONTROLS }));

@@ -2,6 +2,7 @@
 // One Durable Object per room code. Same Room/Game code as the Node server.
 import { Room, CODE_RE } from '../server/room.js';
 import { Mailbox, emptyData, FRIEND_RE } from '../server/friends.js';
+import { Scores, routeScores, emptyBoards } from '../server/scores.js';
 
 export class RoomDO {
   constructor(state, env) { this.state = state; this.env = env; this.room = null; }
@@ -121,6 +122,25 @@ export class InboxDO {
   webSocketClose(ws) { try { ws.close(); } catch { /* already closed */ } }
 }
 
+/** The Piece Rain leaderboard: one Durable Object holds every board (they are small) and checks every score. */
+export class ScoresDO {
+  constructor(state) {
+    this.state = state; this.scores = null;
+    state.blockConcurrencyWhile(async () => {
+      const data = (await state.storage.get('boards')) ?? emptyBoards();
+      this.scores = new Scores(data, { save: (d) => state.storage.put('boards', d) });
+    });
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    let body = null;
+    if (request.method === 'POST') { try { const text = await request.text(); body = text.length < 2048 ? JSON.parse(text) : null; } catch { body = null; } }
+    const { status, json } = await routeScores(this.scores, request.method, url.pathname.replace(/^\/scores/, ''), url.searchParams, body);
+    return Response.json(json, { status });
+  }
+}
+
 const originAllowed = (origin, env) => {
   if (!origin) return true;
   try {
@@ -133,6 +153,14 @@ const originAllowed = (origin, env) => {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/scores/') || url.pathname === '/scores') {
+      const origin = request.headers.get('Origin');
+      const cors = { 'Access-Control-Allow-Origin': origin ?? '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'content-type', Vary: 'Origin' };
+      if (!originAllowed(origin, env)) return new Response('Origin not allowed', { status: 403 });
+      if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+      const res = await env.SCORES.get(env.SCORES.idFromName('global')).fetch(request);
+      return new Response(res.body, { status: res.status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...cors } });
+    }
     const f = url.pathname.match(/^\/friends\/([A-Za-z0-9]{8})$/);
     if (f) {
       const code = f[1].toUpperCase();

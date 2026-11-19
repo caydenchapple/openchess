@@ -5,7 +5,7 @@ import { get, subscribe, friendIdentity, friendList, setFriend, dropFriend } fro
 import { serverBase } from './net.js';
 import { toast, h } from './util.js';
 import { play } from './sound.js';
-import { avatarEl } from './avatars.js';
+import { avatarEl, DEFAULT_AVATAR } from './avatars.js';
 
 export const FRIEND_RE = /^[A-HJKMNP-Z2-9]{8}$/;
 export const cleanFriendCode = (s) => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/[IL]/g, '1').replace(/O/g, '0').slice(0, 8);
@@ -99,7 +99,7 @@ function ask(msg, type, to) {
 
 function profile() {
   const { player } = get();
-  const av = player.avatar?.kind === 'preset' ? player.avatar.id : null;
+  const a = player.avatar ?? DEFAULT_AVATAR; const av = a.kind === 'preset' ? a.id : null;
   return { name: player.name, av };
 }
 

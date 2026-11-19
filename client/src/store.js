@@ -18,6 +18,7 @@ const defaults = () => ({
   mistakes: [], // puzzles from your own blunders
   learn: emptyLearn(), // lesson progress, spaced-repetition boxes and the daily streak
   teach: { progress: null, tips: {} }, // tutorial kit state: which steps and tips were already shown
+  arcade: { best: { w: 0, b: 0 }, plays: 0, color: 'w' }, // Piece Rain: best score per colour
   friends: { on: false, code: null, key: null, list: [] }, // friend code + secret (made when you first open Friends); list: { code, name, av, state: 'friend' | 'sent', added }
 });
 
@@ -38,6 +39,7 @@ function load() {
         ratings: { ...d.ratings, ...raw.ratings },
         learn: { ...d.learn, ...(raw.learn ?? {}), streak: { ...d.learn.streak, ...(raw.learn?.streak ?? {}) } }, // older saves had a different shape
         settings: { ...d.settings, ...raw.settings },
+        arcade: { ...d.arcade, ...(raw.arcade ?? {}), best: { ...d.arcade.best, ...(raw.arcade?.best ?? {}) } },
         friends: { ...d.friends, ...(raw.friends ?? {}), list: Array.isArray(raw.friends?.list) ? raw.friends.list : [] },
       };
     }
@@ -60,6 +62,14 @@ export function setName(name) {
 }
 export function setSetting(k, v) { state.settings[k] = v; save(); }
 export function setAvatar(avatar) { state.player.avatar = avatar; save(); }
+
+/** Piece Rain: remember the colour you chose and your best score with it. Returns true when it is a new best. */
+export function recordArcade(color, score) {
+  const a = state.arcade; a.plays += 1; a.color = color;
+  const isBest = score > (a.best[color] ?? 0);
+  if (isBest) a.best[color] = score;
+  save(); return isBest;
+}
 
 // ---- friends (see social.js). The code is public, the key is the secret that proves it is yours.
 const FRIEND_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';

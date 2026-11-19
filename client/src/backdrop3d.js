@@ -157,7 +157,7 @@ export function createBackdrop() {
   const onMove = (e) => {
     if (drag) {
       const p = toWorld(e.clientX, e.clientY);
-      drag.tx = MathUtils.clamp(p.x + drag.dx, -halfW + 0.6, halfW - 0.6); drag.ty = MathUtils.clamp(p.y + drag.dy, -halfH + 0.6, halfH + 2);
+      drag.tx = MathUtils.clamp(p.x + drag.dx, -halfW + 0.6, halfW - 0.6); drag.ty = MathUtils.clamp(p.y + drag.dy, -halfH - 4, halfH + 2); // the bottom of the screen is not a wall: you can carry a piece right off it
       hist.push({ t: performance.now(), x: drag.tx, y: drag.ty }); if (hist.length > 12) hist.shift();
       return;
     }

@@ -10,6 +10,10 @@ class_name = "RoomDO"
 name = "INBOX"
 class_name = "InboxDO"
 
+[[durable_objects.bindings]]
+name = "SCORES"
+class_name = "ScoresDO"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["RoomDO"]
@@ -17,6 +21,10 @@ new_sqlite_classes = ["RoomDO"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["InboxDO"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["ScoresDO"]
 
 [vars]
 # extra origins (besides *.pages.dev and localhost) that may open room connections, comma separated
