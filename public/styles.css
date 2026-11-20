@@ -893,3 +893,12 @@ button.gm { cursor: pointer; } button.gm:hover { background: var(--bg3); }
 .gm.mine { font-weight: 600; }
 .gm.cur { background: var(--bg3); border-color: var(--line); }
 .gm.hid { color: var(--muted); }
+
+.ghow ol { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; color: var(--muted); }
+.ghow h2 { margin-bottom: 8px; }
+.gtodo { font-size: 1.05rem; font-weight: 500; }
+.ghint { padding: 8px 10px; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 0 8px 8px 0; }
+.gwrong { color: var(--danger); }
+.gwork { display: grid; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); }
+.gwork h3 { margin: 0; } .gwork ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 6px; } .gwork p { margin: 0; }
+.stack-s { display: grid; gap: 6px; }
