@@ -852,3 +852,44 @@ main, .foot { position: relative; z-index: 1; }
 .lb-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lb-score { font: 600 1rem var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { .rain-field.hurt, .rain-over { animation: none; } .rp.pop, .rp.wrong { animation-duration: 1ms; } }
+
+/* ================= gambits ================= */
+.gambits .back { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; width: fit-content; }
+.gambits .back:hover { color: var(--text); }
+.gdue { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.gdue h2 { margin: 0 0 4px; } .gdue p { margin: 0; max-width: 60ch; }
+.gambit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.gcard { display: grid; gap: 10px; align-content: start; padding: 16px 18px; background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; text-decoration: none; color: inherit; transition: transform 180ms var(--ease), border-color 180ms; }
+.gcard:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.gcard h3 { margin: 0; font-weight: 500; } .gcard p { margin: 0; font-size: .92rem; }
+.gcard-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.gcard-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.glevel { font: 500 .75rem var(--font-mono, ui-monospace, monospace); padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.glevel.l1 { color: var(--accent); } .glevel.l3 { color: var(--warn); }
+.gtag { font: 500 .72rem var(--font-mono, ui-monospace, monospace); padding: 2px 8px; border-radius: 99px; background: var(--bg3); color: var(--muted); }
+.gtag.due, .gtag.st-due { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
+.gtag.st-mastered, .gtag.mine { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
+.gtag.trap { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); }
+.gpage { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .gpage { grid-template-columns: minmax(0, 1fr); } }
+.gpage ul { margin: 0; padding-left: 1.1rem; color: var(--muted); display: grid; gap: 4px; }
+.glines { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.gline { display: grid; gap: 10px; padding: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
+.gline p { margin: 2px 0 0; }
+.gline-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.gline-actions .btn { min-height: 36px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px; }
+.gtabs { display: inline-flex; gap: 4px; padding: 4px; background: var(--bg3); border-radius: 10px; }
+.gtab { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 7px; text-decoration: none; color: var(--muted); }
+.gtab.on { background: var(--bg2); color: var(--text); box-shadow: 0 0 0 1px var(--line); }
+.gnote { display: grid; gap: 6px; min-height: 6.5rem; align-content: start; }
+.gnote p { margin: 0; }
+.gnote-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.gsan { font: 600 1.15rem var(--font-mono, ui-monospace, monospace); }
+.gmoves { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: 2px 8px; font-family: var(--font-mono, ui-monospace, monospace); }
+.gmoves li { display: flex; gap: 6px; align-items: center; }
+.gmoves .mn { color: var(--muted); width: 1.9rem; text-align: right; font-size: .85rem; }
+.gm { min-height: 0; padding: 2px 8px; border: 1px solid transparent; background: transparent; border-radius: 6px; font: inherit; color: var(--text); }
+button.gm { cursor: pointer; } button.gm:hover { background: var(--bg3); }
+.gm.mine { font-weight: 600; }
+.gm.cur { background: var(--bg3); border-color: var(--line); }
+.gm.hid { color: var(--muted); }

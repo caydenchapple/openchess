@@ -10,6 +10,7 @@ export function backdropWanted(key, params = []) {
   if (!get().settings.floatingPieces || calm()) return false;
   if (QUIET.includes(key)) return false;
   if (key === 'learn' && params.length) return false;
+  if (key === 'gambits' && params.length > 1) return false; // the board needs the calm
   return true;
 }
 

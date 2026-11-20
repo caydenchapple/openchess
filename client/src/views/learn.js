@@ -8,6 +8,7 @@ import { play } from '../sound.js';
 import { aggregate } from '../stats.js';
 import { icon } from '../icons.js';
 import { CURRICULUM } from '../lessons-data.js';
+import { dueLines } from '../gambits-logic.js';
 import {
   dayKey, currentStreak, addPoints, weekView, reviewExercise, dueIds, planSession, playerLevel, recordResult, getSkill,
   topicChance, exerciseRating, exerciseIndex, flatLessons, DAILY_GOAL, TOPIC_BASE,
@@ -148,6 +149,10 @@ function hub(root, cleanups) {
         h('a', { class: 'lrow plain', href: '#/train' },
           h('span', { class: 'node' }, icon('target', 16)),
           h('span', { class: 'l-body' }, h('b', {}, 'Your mistakes'), h('span', { class: 'l-meta' }, mistakes ? `${plural(mistakes, 'position')} from your own games` : 'Positions where you went wrong in your own games')),
+          h('span', { class: 'l-right' }, h('span', { class: 'go' }, 'Open', icon('next', 14)))),
+        h('a', { class: 'lrow plain', href: '#/gambits' },
+          h('span', { class: 'node' }, icon('book', 16)),
+          h('span', { class: 'l-body' }, h('b', {}, 'Gambits'), h('span', { class: 'l-meta' }, (() => { const n = dueLines(get().gambits, t).length; return n ? `${plural(n, 'line')} to practise today` : 'Learn gambits and their lines, then play them from memory'; })())),
           h('span', { class: 'l-right' }, h('span', { class: 'go' }, 'Open', icon('next', 14)))),
         method),
       side)));

@@ -31,6 +31,7 @@ export function mount(root) {
           : h('a', { class: 'btn primary huge', href: '#/play' }, icon('play'), ' Play now'),
         h('div', { class: 'learn-cta' },
           h('a', { class: 'btn big', href: '#/learn' }, icon('cap'), ' Train with a plan'),
+          h('a', { class: 'btn big', href: '#/gambits' }, icon('book'), ' Gambits'),
           h('a', { class: 'btn big', href: '#/rain' }, icon('target'), ' Piece Rain'),
           (() => { const s = currentStreak(st.learn.streak, dayKey()); return s.count ? h('span', { class: 'streak-pill' }, icon('flame', 16), ` ${s.count}-day streak`) : null; })()),
         lastReviewable && h('p', { class: 'small-links' }, h('a', { href: '#/history' }, 'See my games'))),

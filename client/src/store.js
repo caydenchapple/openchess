@@ -18,6 +18,7 @@ const defaults = () => ({
   mistakes: [], // puzzles from your own blunders
   learn: emptyLearn(), // lesson progress, spaced-repetition boxes and the daily streak
   teach: { progress: null, tips: {} }, // tutorial kit state: which steps and tips were already shown
+  gambits: { lines: {} }, // gambit trainer progress (see gambits-logic.js)
   arcade: { best: { w: 0, b: 0 }, plays: 0, color: 'w' }, // Piece Rain: best score per colour
   friends: { on: false, code: null, key: null, list: [] }, // friend code + secret (made when you first open Friends); list: { code, name, av, state: 'friend' | 'sent', added }
 });
@@ -39,6 +40,7 @@ function load() {
         ratings: { ...d.ratings, ...raw.ratings },
         learn: { ...d.learn, ...(raw.learn ?? {}), streak: { ...d.learn.streak, ...(raw.learn?.streak ?? {}) } }, // older saves had a different shape
         settings: { ...d.settings, ...raw.settings },
+        gambits: { lines: { ...(raw.gambits?.lines ?? {}) } },
         arcade: { ...d.arcade, ...(raw.arcade ?? {}), best: { ...d.arcade.best, ...(raw.arcade?.best ?? {}) } },
         friends: { ...d.friends, ...(raw.friends ?? {}), list: Array.isArray(raw.friends?.list) ? raw.friends.list : [] },
       };
