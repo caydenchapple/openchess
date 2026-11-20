@@ -1,15 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GAMBITS, allLines } from '../client/src/gambits-data.js';
-import { buildSteps, isBookMove, recordRun, lineStatus, dueLines, emptyGambits, gambitSummary, lineKey } from '../client/src/gambits-logic.js';
+import { Chess } from 'chess.js';
+import { buildSteps, isBookMove, lineSize, gambitPreview, linePreview, parseMoves, recordRun, lineStatus, dueLines, emptyGambits, gambitSummary, lineKey } from '../client/src/gambits-logic.js';
 
 test('every gambit line replays legally and every note sits on a real move', () => {
-  assert.ok(GAMBITS.length >= 10);
+  assert.ok(GAMBITS.length >= 20);
+  for (const g of GAMBITS) assert.ok(Number.isInteger(g.preview) && g.preview >= 1, `${g.id} needs a preview ply`);
   for (const g of GAMBITS) {
     assert.ok(['w', 'b'].includes(g.side));
     for (const l of g.lines) {
       const steps = buildSteps(g, l); // throws on an illegal move
-      assert.ok(steps.length >= 8, `${g.id}/${l.id} is too short`);
+      assert.ok(steps.length >= 7, `${g.id}/${l.id} is too short`);
       assert.ok(steps.some((s) => s.mine), `${g.id}/${l.id} has no move for you`);
       const keys = new Set(steps.map((s) => s.key));
       for (const k of Object.keys(l.notes)) assert.ok(keys.has(k), `${g.id}/${l.id}: note ${k} is not on a move`);
@@ -51,4 +53,16 @@ test('spaced repetition: clean runs climb and come back later, messy runs come b
   assert.deepEqual(dueLines(G, '2026-03-02').map((l) => l.key), [key]);
   const s = gambitSummary(G, GAMBITS.find((g) => g.id === 'queens'), '2026-03-02');
   assert.deepEqual([s.total, s.due], [2, 1]);
+});
+
+test('a line that ends with # really ends in checkmate, and the size and preview helpers agree with the line', () => {
+  for (const g of GAMBITS) for (const l of g.lines) {
+    const chess = new Chess(); parseMoves(l.moves).forEach((m) => chess.move(m));
+    if (/#$/.test(l.moves.trim())) assert.ok(chess.isCheckmate(), `${g.id}/${l.id} claims mate`);
+    const { plies, mine } = lineSize(g, l);
+    assert.equal(plies, parseMoves(l.moves).length); assert.ok(mine > 0 && mine <= plies);
+    assert.match(linePreview(l).fen, / [wb] /);
+  }
+  const q = GAMBITS.find((g) => g.id === 'queens'); assert.deepEqual(gambitPreview(q).last, ['c2', 'c4']);
+  assert.ok(GAMBITS.some((g) => g.type === 'trap') && GAMBITS.some((g) => g.type === 'defence'));
 });

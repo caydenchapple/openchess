@@ -30,6 +30,21 @@ export function isBookMove(step, attempt) {
   } catch { return false; }
 }
 
+/** Size of a line: how many moves in all, and how many of them are yours to find. */
+export function lineSize(gambit, line) {
+  const moves = parseMoves(line.moves);
+  return { plies: moves.length, mine: moves.filter((_, i) => (i % 2 === 0 ? 'w' : 'b') === gambit.side).length };
+}
+
+/** The position (and the move that led to it) after `n` plies of a line; used for the preview pictures. */
+export function positionAfter(line, n = Infinity) {
+  const chess = new Chess(); let last = null;
+  for (const san of parseMoves(line.moves).slice(0, n)) { const m = chess.move(san); last = [m.from, m.to]; }
+  return { fen: chess.fen(), last };
+}
+export const gambitPreview = (g) => positionAfter(g.lines[0], g.preview ?? 6);
+export const linePreview = (line) => positionAfter(line);
+
 // ---------------------------------------------------------------- progress
 export const emptyGambits = () => ({ lines: {} }); // key `gambit/line` -> { box, due, runs, clean, last }
 

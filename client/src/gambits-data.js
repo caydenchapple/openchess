@@ -1,5 +1,7 @@
 // Gambits to train. Each one has the side that plays it, the plans, and one to three lines (main line, what happens if the
 // opponent declines, a trap). Moves are PGN text; every line is replayed through chess.js in the test-suite, so a typo cannot sneak in.
+// `preview` is the move (counted in plies) of the main line whose position is drawn on the card: the moment the gambit is offered.
+// `type` is 'trap' for tricks that win material or mate, and 'defence' for lines that teach you to meet one; the rest are gambits.
 // NOTES explain a move by its move number and colour: '4w' is White's 4th move, '4b' is Black's 4th. Plain ideas only, no deep theory.
 const line = (id, name, kind, summary, moves) => ({ id, name, kind, summary, moves, notes: {} });
 
@@ -7,7 +9,7 @@ export const LEVELS = ['Beginner', 'Intermediate', 'Sharp'];
 
 export const GAMBITS = [
   {
-    id: 'queens', name: "Queen's Gambit", side: 'w', level: 1,
+    id: 'queens', name: "Queen's Gambit", side: 'w', level: 1, preview: 3,
     tagline: 'Offer the c-pawn to pull Black\'s d-pawn out of the centre.',
     ideas: ['The pawn is not really lost: if Black takes on c4, you win it back with Bxc4 while you take the centre with e3 and Nf3.', 'It is the safest gambit in chess, a good first one to learn.'],
     plans: ['Develop with Nf3 and e3, and take back on c4 with the bishop.', 'Castle early and keep an eye on the c- and d-files.'],
@@ -20,7 +22,7 @@ export const GAMBITS = [
     ],
   },
   {
-    id: 'kings', name: "King's Gambit", side: 'w', level: 2,
+    id: 'kings', name: "King's Gambit", side: 'w', level: 2, preview: 3,
     tagline: 'Give the f-pawn to open the f-file and take the centre.',
     ideas: ['After ...exf4 you play d4 and put pieces on active squares while Black has to find safe moves.', 'It is a gambit of the old school: sharp, fast and full of tricks for both sides.'],
     plans: ['Play Nf3 and Bc4 quickly, aiming at f7.', 'Castle and use the half-open f-file against the black king.'],
@@ -33,7 +35,7 @@ export const GAMBITS = [
     ],
   },
   {
-    id: 'evans', name: 'Evans Gambit', side: 'w', level: 2,
+    id: 'evans', name: 'Evans Gambit', side: 'w', level: 2, preview: 7,
     tagline: 'Sacrifice a wing pawn with b4 to build a big centre.',
     ideas: ['After b4 Bxb4, the move c3 hits the bishop and prepares d4, gaining time for a full centre.', 'A famous attacking gambit of the Italian Game.'],
     plans: ['Play c3 and d4 quickly, then castle and bring the queen and rook to the centre.', 'Aim your pieces at f7.'],
@@ -46,7 +48,7 @@ export const GAMBITS = [
     ],
   },
   {
-    id: 'danish', name: 'Danish Gambit', side: 'w', level: 3,
+    id: 'danish', name: 'Danish Gambit', side: 'w', level: 3, preview: 5,
     tagline: 'Give two pawns for two bishops that stare at the black king.',
     ideas: ['After d4 and c3 you let Black take two pawns, and your bishops on b2 and c4 point straight at g7 and f7.', 'It is very sharp: great fun, and it punishes passive play.'],
     plans: ['Develop quickly and open lines; the extra material is of little use to Black if it cannot be developed.', 'Look for Bxf7+ and a check on the e-file or the long diagonal.'],
@@ -57,7 +59,7 @@ export const GAMBITS = [
     ],
   },
   {
-    id: 'morra', name: 'Smith-Morra Gambit', side: 'w', level: 2,
+    id: 'morra', name: 'Smith-Morra Gambit', side: 'w', level: 2, preview: 5,
     tagline: 'Give a pawn against the Sicilian for a big lead in development.',
     ideas: ['After 2.d4 cxd4 3.c3 dxc3 4.Nxc3, you have two open files and lots of piece play for the pawn.', 'It is a simple plan: develop, castle, and put rooks on the open files.'],
     plans: ['Play Nf3, Bc4, O-O, Qe2 and Rd1.', 'Aim the pieces at d6 and f7.'],
@@ -70,7 +72,7 @@ export const GAMBITS = [
     ],
   },
   {
-    id: 'scotch', name: 'Scotch Gambit', side: 'w', level: 2,
+    id: 'scotch', name: 'Scotch Gambit', side: 'w', level: 2, preview: 7,
     tagline: 'Open the centre fast with d4 and the bishop on c4.',
     ideas: ['Instead of taking back on d4 with the knight, you play Bc4 and c3 to build a big centre and gain time.', 'It is a classic gambit that leads to open play.'],
     plans: ['Play Bc4, c3 and castle; push e5 when it gains time.', 'Recapture on d4 with a pawn to get a strong centre.'],
@@ -81,7 +83,7 @@ export const GAMBITS = [
     ],
   },
   {
-    id: 'vienna', name: 'Vienna Gambit', side: 'w', level: 2,
+    id: 'vienna', name: 'Vienna Gambit', side: 'w', level: 2, preview: 5,
     tagline: 'Play Nc3 first, then f4 to hit the centre.',
     ideas: ['The knight on c3 helps the f4 break, so Black cannot just ignore the gambit.', 'It is a modern, active way to reach an attacking game.'],
     plans: ['Take on e5, play Nf3 and d4, then castle.', 'Use the knight and bishop to attack the e4 square.'],
@@ -92,7 +94,7 @@ export const GAMBITS = [
     ],
   },
   {
-    id: 'fried', name: 'Fried Liver Attack', side: 'w', level: 3,
+    id: 'fried', name: 'Fried Liver Attack', side: 'w', level: 3, preview: 11,
     tagline: 'Sacrifice a knight on f7 to drag the black king out.',
     ideas: ['Against the Two Knights Defence, Ng5 hits f7. If Black takes on d5 with the knight, Nxf7 starts a fierce attack.', 'The attack only works if Black falls for it; against 5...Na5 you play calmly.'],
     plans: ['After Nxf7 Kxf7, Qf3+ and Nc3 bring the pieces into the attack.', 'Keep the bishop on c4 aimed at the king.'],
@@ -105,7 +107,7 @@ export const GAMBITS = [
     ],
   },
   {
-    id: 'budapest', name: 'Budapest Gambit', side: 'b', level: 2,
+    id: 'budapest', name: 'Budapest Gambit', side: 'b', level: 2, preview: 4,
     tagline: 'Meet 1.d4 Nf6 2.c4 with ...e5, and hit back with ...Ng4.',
     ideas: ['You give a pawn for fast piece play: after ...Ng4 you win the pawn back on e5, and White can easily fall into a trap.', 'It is a nice surprise for players who do not know it.'],
     plans: ['Play ...Ng4, ...Nc6 and ...Bb4+ to put pressure on e5.', 'Win the pawn back on e5 with the knights.'],
@@ -118,7 +120,7 @@ export const GAMBITS = [
     ],
   },
   {
-    id: 'albin', name: 'Albin Countergambit', side: 'b', level: 2,
+    id: 'albin', name: 'Albin Countergambit', side: 'b', level: 2, preview: 4,
     tagline: 'Hit back against the Queen\'s Gambit with ...e5 and ...d4.',
     ideas: ['You give a pawn but get a space-gaining pawn on d4 and quick play on the long diagonal.', 'White has to be careful, and there are a few quick traps.'],
     plans: ['Play ...Nc6, ...Be6 and ...Qd7, then castle long.', 'Keep the pawn on d4 well protected.'],
@@ -131,7 +133,7 @@ export const GAMBITS = [
     ],
   },
   {
-    id: 'benko', name: 'Benko Gambit', side: 'b', level: 3,
+    id: 'benko', name: 'Benko Gambit', side: 'b', level: 3, preview: 6,
     tagline: 'Give a pawn for long-term pressure on the queenside.',
     ideas: ['After ...b5 and ...a6, you open the a- and b-files and put rooks and a fianchettoed bishop on them.', 'The pressure is permanent: a good plan in the endgame too.'],
     plans: ['Play ...g6, ...Bg7 and castle, then double rooks on the b-file.', 'Trade your light-squared bishop for White\'s, and aim at the queenside.'],
@@ -142,7 +144,7 @@ export const GAMBITS = [
     ],
   },
   {
-    id: 'marshall', name: 'Marshall Attack', side: 'b', level: 3,
+    id: 'marshall', name: 'Marshall Attack', side: 'b', level: 3, preview: 16,
     tagline: 'Give a pawn in the Ruy Lopez for a strong attack.',
     ideas: ['After ...d5 you sacrifice a pawn, and give up the e5 pawn in return for a lead in development and an attack on the white king.', 'It is one of the best-known gambits at every level.'],
     plans: ['Keep the pieces active: ...Bd6, ...Qh4 and ...Bg4 aim at the white king.', 'Do not trade queens, and do not let the pressure drop.'],
@@ -150,6 +152,127 @@ export const GAMBITS = [
     lines: [
       line('main', 'The main line', 'main', 'The standard Marshall: a pawn for a long attack.',
         '1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 O-O 8. c3 d5 9. exd5 Nxd5 10. Nxe5 Nxe5 11. Rxe5 c6 12. d3 Bd6 13. Re1 Qh4 14. g3 Qh3'),
+    ],
+  },
+  {
+    id: 'maxlange', name: 'Max Lange Attack', side: 'w', level: 3, preview: 7,
+    tagline: 'Open the centre at once and attack with check after check.',
+    ideas: ['You castle instead of saving the pawn on d4, so your pieces come out with tempo.', 'Black has to find a string of accurate moves, and the position stays sharp for both sides.'],
+    plans: ['Castle, push e5 to hit the knight, then bring the rook to the e-file with check.', 'Aim your pieces at e6 and f7.'],
+    avoid: ['Do not retreat the bishop; the point is speed.', 'Know the line: one slow move lets Black take over.'],
+    lines: [
+      line('main', 'The main line', 'main', 'A race: you give up pawns and the bishop pair for fast attacking chances.',
+        '1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d4 exd4 5. O-O Bc5 6. e5 d5 7. exf6 dxc4 8. Re1+ Be6 9. Ng5 Qd5 10. Nc3 Qf5 11. Nce4 O-O-O'),
+    ],
+  },
+  {
+    id: 'milner', name: 'Milner-Barry Gambit', side: 'w', level: 3, preview: 15,
+    tagline: 'Give the d4 pawn against the French to rip open the centre.',
+    ideas: ['In the French Advance, you let Black take on d4 to speed up your development and open lines.', 'Black\'s queen ends up in the middle of the board, where you can hit it with tempo.'],
+    plans: ['Develop with Nc3, Be3 and Qe2, hitting the queen when you can.', 'Use the bishop on d3 and the open lines against the black king.'],
+    avoid: ['Do not castle too late.', 'If Black declines the pawn, simply recapture on d4.'],
+    lines: [
+      line('main', 'Black takes the pawn', 'main', 'The standard line: you castle first and let the pawn go.',
+        '1. e4 e6 2. d4 d5 3. e5 c5 4. c3 Nc6 5. Nf3 Qb6 6. Bd3 cxd4 7. cxd4 Bd7 8. O-O Nxd4 9. Nxd4 Qxd4 10. Nc3'),
+    ],
+  },
+  {
+    id: 'bdg', name: 'Blackmar-Diemer Gambit', side: 'w', level: 3, preview: 7,
+    tagline: 'Give a pawn with e4 and f3 for a lead in development.',
+    ideas: ['White gives the e-pawn, and then the f-pawn, for open lines and quick piece play.', 'If Black takes on f3, you recapture with the knight and attack.'],
+    plans: ['Play Nxf3, Bg5, Bd3 and Qe2, then castle.', 'Aim your bishop and queen at h7.'],
+    avoid: ['Do not trade pieces; you need the attack to make up for the pawn.', 'Do not play f3 before your knight on c3 is ready.'],
+    lines: [
+      line('main', 'Black takes both pawns', 'main', 'The main line: you recapture on f3 and develop with tempo.',
+        '1. d4 d5 2. e4 dxe4 3. Nc3 Nf6 4. f3 exf3 5. Nxf3 e6 6. Bg5 Be7 7. Bd3'),
+    ],
+  },
+  {
+    id: 'staunton', name: 'Staunton Gambit', side: 'w', level: 3, preview: 3,
+    tagline: 'Give the e-pawn against the Dutch and hit f6 with the bishop.',
+    ideas: ['You offer the e-pawn against the Dutch Defence to open the centre.', 'Your bishop on g5 hits the knight on f6, so the pawn on e4 does not stay safe.'],
+    plans: ['Develop with Nc3 and Bg5, aiming at f6.', 'Push d5 to cut the knight on c6 from the centre.'],
+    avoid: ['Do not trade the dark-squared bishop for no reason.', 'Know that Black can return the pawn later with ...d5.'],
+    lines: [
+      line('main', 'Black takes the pawn', 'main', 'You play Bg5 and d5, and the black knights get pushed around.',
+        '1. d4 f5 2. e4 fxe4 3. Nc3 Nf6 4. Bg5 Nc6 5. d5 Ne5 6. Qd4 Nf7 7. Bxf6 exf6'),
+    ],
+  },
+  {
+    id: 'legal', name: "Légal's Trap", side: 'w', level: 1, preview: 9, type: 'trap',
+    tagline: 'Leave your queen and checkmate with three minor pieces.',
+    ideas: ['A famous trick: when Black pins your knight on f3 and takes your queen, the bishop and knights deliver mate.', 'If Black does not fall for it, you are simply a pawn up.'],
+    plans: ['Play Nc3 and Bc4, then wait for Black to take your queen.', 'Look for the mate on d5.'],
+    avoid: ['If Black does not take the queen, do not rely on the trap again.', 'Do not play it against a player who knows the idea.'],
+    lines: [
+      line('trap', 'The queen sacrifice', 'trap', 'Black grabs the queen and gets checkmated.',
+        '1. e4 e5 2. Nf3 d6 3. Bc4 Bg4 4. Nc3 g6 5. Nxe5 Bxd1 6. Bxf7+ Ke7 7. Nd5#'),
+    ],
+  },
+  {
+    id: 'scholar', name: "Scholar's Mate", side: 'w', level: 1, preview: 5, type: 'trap',
+    tagline: 'Checkmate in four moves, and why it only works once.',
+    ideas: ['The queen and bishop both hit f7, which is defended only by the king.', 'It beats beginners; good players defend easily.'],
+    plans: ['Play Bc4 and Qh5, then take on f7.', 'If Black defends, develop your other pieces instead of sending the queen out again.'],
+    avoid: ['Do not keep chasing with the queen if Black defends.', 'Do not trade your bishop for a knight without a reason.'],
+    lines: [
+      line('trap', 'Four-move mate', 'trap', 'Black blocks the wrong way and f7 falls with mate.',
+        '1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Qxf7#'),
+    ],
+  },
+  {
+    id: 'schliemann', name: 'Schliemann Defence', side: 'b', level: 3, preview: 6,
+    tagline: 'Hit e4 at once against the Ruy Lopez.',
+    ideas: ['After 3.Bb5, you play ...f5 and open lines for a counter-attack.', 'It is sharp: both kings can get into trouble.'],
+    plans: ['After ...fxe4 and ...d5, build a big centre.', 'Use the queen on g5 and the knight on f6 to attack.'],
+    avoid: ['Do not play it without knowing the main lines; White can answer in many ways.', 'Watch the pawn on a7 and your king on e8.'],
+    lines: [
+      line('main', 'The main line', 'main', 'A tactical melee that ends with your queen attacking g2.',
+        '1. e4 e5 2. Nf3 Nc6 3. Bb5 f5 4. Nc3 fxe4 5. Nxe4 d5 6. Nxe5 dxe4 7. Nxc6 Qg5 8. Qe2 Nf6'),
+    ],
+  },
+  {
+    id: 'latvian', name: 'Latvian Gambit', side: 'b', level: 3, preview: 4,
+    tagline: 'An old, wild gambit: strike with ...f5 before you have developed.',
+    ideas: ['You hit e4 at once and accept the risks for a fast attack.', 'White must be careful too, as one slip lets you attack the king.'],
+    plans: ['Play ...Qf6 to hit the knight on e5, then ...d6 and ...fxe4.', 'Get your pieces out quickly and use the f-file.'],
+    avoid: ['Do not let White take on e5 without a plan.', 'Do not play ...Qh4+ when it just loses time.'],
+    lines: [
+      line('main', 'The main line', 'main', 'You kick the knight away, take on e4, and the queen heads for g6.',
+        '1. e4 e5 2. Nf3 f5 3. Nxe5 Qf6 4. d4 d6 5. Nc4 fxe4 6. Nc3 Qg6 7. Ne3'),
+    ],
+  },
+  {
+    id: 'blackburne', name: 'Blackburne Shilling Gambit', side: 'b', level: 1, preview: 6, type: 'trap',
+    tagline: 'A cheeky trap: bait the knight, then mate on f3.',
+    ideas: ['3...Nd4 offers a pawn on e5 and a mate on f3 if White is greedy.', 'It is bad against good play, so use it for fun or against quick players.'],
+    plans: ['Meet 4.Nxe5 with 4...Qg5, hitting g2 and the knight at the same time.', 'Take on g2 and then on e4 with check.'],
+    avoid: ['White avoids the trap with 4.Nxd4 or 4.c3.', 'Do not expect it to work against a strong player.'],
+    lines: [
+      line('trap', 'The Nf3 mate', 'trap', 'White takes the pawns, and your knight delivers mate on f3.',
+        '1. e4 e5 2. Nf3 Nc6 3. Bc4 Nd4 4. Nxe5 Qg5 5. Nxf7 Qxg2 6. Rf1 Qxe4+ 7. Be2 Nf3#'),
+    ],
+  },
+  {
+    id: 'scholardef', name: "Stop Scholar's Mate", side: 'b', level: 1, preview: 5, type: 'defence',
+    tagline: 'Meet the queen and bishop attack and take over the game.',
+    ideas: ['You answer the attack on f7 with ...g6 and ...Nf6 in the right order.', 'After that, your extra development time is yours to use.'],
+    plans: ['After Qh5, play ...g6 to hit the queen, then develop.', 'Use the extra time to take the centre with ...Nf6 and ...d5.'],
+    avoid: ['Do not play ...Nf6 when the queen is on h5 and the bishop on c4: Qxf7 is mate.', 'Do not chase the queen with every move; develop.'],
+    lines: [
+      line('defence', 'The calm defence', 'main', 'Hit the queen with ...g6, block the f-file with the knight and keep playing.',
+        '1. e4 e5 2. Bc4 Nc6 3. Qh5 g6 4. Qf3 Nf6 5. Qb3 Qe7 6. Nc3 Na5 7. Qa4 c6'),
+    ],
+  },
+  {
+    id: 'elephant', name: 'Elephant Trap', side: 'b', level: 2, preview: 8, type: 'trap',
+    tagline: 'In the Queen\'s Gambit Declined, let White grab a pawn and win a piece.',
+    ideas: ['White takes on d5 with the knight, and your in-between check wins a piece.', 'You need the right move order: ...Nbd7 first, not ...Be7.'],
+    plans: ['Answer Bg5 with ...Nbd7, a developing move that sets the trap.', 'After Nxd5, take with the knight and play the in-between move ...Bb4+.'],
+    avoid: ['Do not rush: wait for White to take on d5.', 'If White plays Nf3 or e3 instead, play a normal Queen\'s Gambit Declined.'],
+    lines: [
+      line('trap', 'The trap', 'trap', 'White grabs the pawn and loses a knight.',
+        '1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Nbd7 5. cxd5 exd5 6. Nxd5 Nxd5 7. Bxd8 Bb4+ 8. Qd2 Bxd2+ 9. Kxd2 Kxd8'),
     ],
   },
 ];
@@ -275,6 +398,88 @@ const NOTES = {
     '12b': 'The bishop aims at h2 and the white kingside.',
     '13b': 'Bring the queen out: the attack begins.',
     '14b': 'The queen on h3 pins down the white kingside.',
+  },
+  'maxlange/main': {
+    '4w': 'Open the centre at once instead of playing it slowly.',
+    '5w': 'Castle rather than take back on d4: you give a pawn for speed.',
+    '6w': 'Kick the knight on f6 and open the e-file.',
+    '7w': 'Take the knight; Black takes your bishop in return, and the position opens up.',
+    '8w': 'Check on the open e-file, so Black has to block.',
+    '9w': 'The knight hits e6 and f7 at the same time.',
+    '10w': 'Develop with a gain of time: the knight attacks the queen.',
+    '11w': 'The knight comes to e4 to join the attack.',
+  },
+  'milner/main': {
+    '3w': 'Gain space and close the centre, the usual Advance plan.',
+    '4w': 'Support the d4 pawn with a pawn.',
+    '5w': 'Develop and defend d4.',
+    '6w': 'Develop the bishop rather than defend d4.',
+    '8w': 'Castle and let Black take on d4: the pawn is the bait.',
+    '10w': 'Develop with threats; the black queen is out in the open.',
+  },
+  'bdg/main': {
+    '2w': 'The Blackmar-Diemer starts: a pawn for the centre.',
+    '3w': 'Develop and hit the pawn on e4.',
+    '4w': 'The gambit move: the f-pawn is offered too.',
+    '5w': 'Take back with the knight; it stands better than the pawn did.',
+    '6w': 'Pin the knight and aim at the kingside.',
+    '7w': 'The bishop aims at h7 and the black king.',
+  },
+  'staunton/main': {
+    '2w': 'The Staunton Gambit: a pawn for open lines and the centre.',
+    '3w': 'Hit the pawn on e4 and develop.',
+    '4w': 'Pin down the knight on f6, so you can win the pawn back.',
+    '5w': 'Kick the knight on c6 and gain space.',
+    '6w': 'The queen hits the knight and the g7 pawn at once.',
+    '7w': 'Trade off the defender of e4 to win the pawn back.',
+  },
+  'legal/trap': {
+    '3w': 'Bring the bishop out to f7; the idea is to hit Black\'s weak spot.',
+    '5w': 'Leave the queen: Black can take it, and it will cost him.',
+    '6w': 'Check with the bishop, forcing the king to e7.',
+    '7w': 'Checkmate with the knight: bishop and knight work together.',
+  },
+  'scholar/trap': {
+    '2w': 'The bishop hits f7, the weakest square.',
+    '3w': 'The queen joins the bishop: f7 is attacked twice.',
+    '4w': 'Checkmate: f7 is defended by the king alone.',
+  },
+  'schliemann/main': {
+    '3b': 'The Schliemann: hit the e4 pawn at once.',
+    '4b': 'Open the f-file and win a pawn.',
+    '5b': 'Kick the knight: if it moves, you have a big centre.',
+    '6b': 'Take the knight on e4; your pieces get active.',
+    '7b': 'The queen hits g2 and the knight on c6 at once.',
+    '8b': 'Bring the knight into play, with threats on g2.',
+  },
+  'latvian/main': {
+    '2b': 'The Latvian Gambit: attack e4 before you have developed.',
+    '3b': 'Attack the knight on e5, which is no longer defended.',
+    '4b': 'Kick the knight away again.',
+    '5b': 'Take the pawn and open the f-file.',
+    '6b': 'Move the queen out of danger; it still eyes the e4 pawn and the kingside.',
+  },
+  'blackburne/trap': {
+    '3b': 'Hit the knight on f3 and invite White to grab e5.',
+    '4b': 'Attack the knight on e5 and the pawn on g2 at once.',
+    '5b': 'Take the pawn; the rook on h1 is attacked too.',
+    '6b': 'Check, taking the pawn on e4.',
+    '7b': 'Checkmate: the knight gives check and the king has nowhere to go.',
+  },
+  'scholardef/defence': {
+    '2b': 'Develop and guard e5 as the bishop looks at f7.',
+    '3b': 'Hit the queen and cover f7 at the same time.',
+    '4b': 'The knight blocks the f-file, so the queen cannot reach f7.',
+    '5b': 'Support the e5 pawn and keep f7 covered.',
+    '6b': 'Hit the bishop and the queen on b3.',
+    '7b': 'Close the diagonal; the bishop has no good squares.',
+  },
+  'elephant/trap': {
+    '4b': 'Develop and set the trap: the pawn on d5 looks free.',
+    '6b': 'Take back: the queen on d8 is attacked, but you have a trick.',
+    '7b': 'The in-between check that wins a piece: it forces the queen to d2.',
+    '8b': 'Take the queen with check.',
+    '9b': 'Take the bishop: you are a piece up for a pawn.',
   },
 };
 for (const g of GAMBITS) for (const l of g.lines) l.notes = NOTES[`${g.id}/${l.id}`] ?? {};
