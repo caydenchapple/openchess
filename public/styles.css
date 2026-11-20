@@ -858,7 +858,7 @@ main, .foot { position: relative; z-index: 1; }
 .gambits .back:hover { color: var(--text); }
 .gdue { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .gdue h2 { margin: 0 0 4px; } .gdue p { margin: 0; max-width: 60ch; }
-.gambit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.gambit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
 .gcard { display: grid; gap: 10px; align-content: start; padding: 16px 18px; background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; text-decoration: none; color: inherit; transition: transform 180ms var(--ease), border-color 180ms; }
 .gcard:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
 .gcard h3 { margin: 0; font-weight: 500; } .gcard p { margin: 0; font-size: .92rem; }
@@ -902,3 +902,36 @@ button.gm { cursor: pointer; } button.gm:hover { background: var(--bg3); }
 .gwork { display: grid; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); }
 .gwork h3 { margin: 0; } .gwork ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 6px; } .gwork p { margin: 0; }
 .stack-s { display: grid; gap: 6px; }
+
+/* gambit previews, steps and learning feel */
+.gthumb { flex: none; width: 96px; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px var(--line), 0 4px 12px rgba(0, 0, 0, .25); line-height: 0; background: var(--sq-dark); }
+.gthumb.sm { width: 84px; } .gthumb.lg { width: 148px; }
+.miniboard { display: block; width: 100%; height: auto; }
+.gcard { grid-template-columns: 96px minmax(0, 1fr); align-items: start; gap: 12px 14px; }
+.gcard-body { display: grid; gap: 8px; min-width: 0; }
+.gcard-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; }
+.gcard-foot .rate-bar { flex: 1; }
+.gcard:hover .gthumb { transform: rotate(-1.5deg) scale(1.03); }
+.gthumb { transition: transform 220ms var(--spring); }
+.gfilters { display: flex; flex-wrap: wrap; gap: 8px; }
+.gfilters .chip { min-height: 34px; padding: 0 14px; }
+.gcount { font-weight: 400; }
+.ghead { display: flex; align-items: center; gap: 18px; }
+.ghead h1 { margin: 0 0 4px; } .ghead p { margin: 0 0 4px; }
+.gline { grid-template-columns: auto minmax(0, 1fr); align-items: start; }
+.gline .gline-actions { grid-column: 1 / -1; }
+.gsize { display: inline-flex; align-items: center; gap: 6px; }
+.gtrack { display: grid; gap: 6px; }
+.gprog { display: flex; gap: 3px; align-items: center; height: 14px; }
+.gseg { flex: 1; min-height: 0; height: 6px; padding: 0; border: 0; border-radius: 99px; background: var(--bg3); transition: background 240ms, transform 360ms var(--spring); }
+button.gseg { cursor: pointer; } button.gseg:hover { background: color-mix(in srgb, var(--accent) 40%, var(--bg3)); }
+.gseg.done { background: color-mix(in srgb, var(--muted) 70%, var(--bg3)); }
+.gseg.mine.done { background: var(--accent); }
+.gseg.cur { transform: scaleY(1.9); }
+.gnote.enter > * { animation: step-in 360ms var(--ease) both; }
+.gnote.enter > :nth-child(2) { animation-delay: 60ms; } .gnote.enter > :nth-child(3) { animation-delay: 120ms; }
+.gdone { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.gdone p { margin: 0; }
+.gdone-badge { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); animation: pop-in 520ms var(--spring) both; flex: none; }
+@media (max-width: 520px) { .ghead { flex-direction: column; align-items: flex-start; } .gthumb.lg { width: 120px; } }
+@media (prefers-reduced-motion: reduce) { .gnote.enter > *, .gdone-badge { animation: none; } .gseg, .gthumb { transition: none; } }

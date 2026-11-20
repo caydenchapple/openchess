@@ -8,7 +8,9 @@ import { play } from '../sound.js';
 import { icon } from '../icons.js';
 import { dayKey, daysBetween } from '../lessons-logic.js';
 import { GAMBITS, LEVELS, gambitById } from '../gambits-data.js';
-import { buildSteps, isBookMove, recordRun, lineStatus, dueLines, gambitSummary, lineKey, MASTERED_BOX } from '../gambits-logic.js';
+import { buildSteps, isBookMove, recordRun, lineStatus, dueLines, gambitSummary, lineKey, lineSize, gambitPreview, linePreview, MASTERED_BOX } from '../gambits-logic.js';
+import { miniBoard } from '../miniboard.js';
+import { allLines } from '../gambits-data.js';
 
 const today = () => dayKey();
 const G = () => get().gambits;
@@ -16,6 +18,9 @@ const SIDE = { w: 'White', b: 'Black' };
 const KIND = { main: 'Main line', alt: 'If they decline', trap: 'Trap' };
 const STATUS = { new: 'New', learning: 'Learning', due: 'Due', mastered: 'Learned' };
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const TYPE = { trap: 'Trap', defence: 'Defence' };
+const totalMoves = (g) => g.lines.reduce((n, l) => n + lineSize(g, l).mine, 0);
+let filter = 'all'; // hub filter, kept while you move around
 
 export function mount(root, params = []) {
   const g = gambitById(params[0]);
@@ -28,36 +33,63 @@ export function mount(root, params = []) {
 }
 
 // ------------------------------------------------------------------ all gambits
+const FILTERS = [['all', 'All'], ['w', 'As White'], ['b', 'As Black'], ['1', 'Beginner'], ['2', 'Intermediate'], ['3', 'Sharp'], ['trap', 'Traps']];
+const passes = (g, f) => f === 'all' || f === g.side || f === String(g.level) || (f === 'trap' && (g.type === 'trap' || g.type === 'defence'));
+
 function hub(root) {
   const t = today();
   const due = dueLines(G(), t);
+  const thumb = (g) => { const p = gambitPreview(g); return h('div', { class: 'gthumb', 'aria-hidden': 'true' }, miniBoard(p.fen, { orientation: g.side, last: p.last })); };
   const card = (g) => {
     const s = gambitSummary(G(), g, t);
     return h('a', { class: 'gcard', href: `#/gambits/${g.id}` },
-      h('div', { class: 'gcard-top' }, h('h3', {}, g.name), s.due ? h('span', { class: 'gtag due' }, `${s.due} due`) : null),
-      h('p', { class: 'muted' }, g.tagline),
-      h('div', { class: 'gcard-meta' },
-        h('span', { class: `glevel l${g.level}` }, LEVELS[g.level - 1]),
-        h('span', { class: 'muted small' }, `${plural(g.lines.length, 'line')} · ${s.mastered}/${s.total} learned`)),
-      h('div', { class: 'rate-bar', role: 'img', 'aria-label': `${s.mastered} of ${s.total} lines learned` }, h('i', { style: { width: `${Math.round((100 * s.mastered) / s.total)}%` } })));
+      thumb(g),
+      h('div', { class: 'gcard-body' },
+        h('div', { class: 'gcard-top' }, h('h3', {}, g.name), s.due ? h('span', { class: 'gtag due' }, `${s.due} due`) : g.type ? h('span', { class: `gtag ${g.type}` }, TYPE[g.type]) : null),
+        h('p', { class: 'muted' }, g.tagline),
+        h('div', { class: 'gcard-meta' },
+          h('span', { class: `glevel l${g.level}` }, LEVELS[g.level - 1]),
+          h('span', { class: 'muted small' }, `${plural(g.lines.length, 'line')} · ${plural(totalMoves(g), 'move')} to learn`))),
+      h('div', { class: 'gcard-foot' },
+        h('div', { class: 'rate-bar', role: 'img', 'aria-label': `${s.mastered} of ${s.total} lines learned` }, h('i', { style: { width: `${Math.round((100 * s.mastered) / s.total)}%` } })),
+        h('span', { class: 'muted small' }, `${s.mastered}/${s.total} learned`)));
   };
-  const section = (side) => h('section', { class: 'stack' },
-    h('h2', {}, `Play as ${SIDE[side]}`),
-    h('div', { class: 'gambit-grid' }, GAMBITS.filter((g) => g.side === side).map(card)));
+  const grid = h('div', { class: 'stack' });
+  const chips = h('div', { class: 'gfilters', role: 'group', 'aria-label': 'Filter gambits' });
+  const draw = () => {
+    chips.replaceChildren(...FILTERS.map(([f, label]) => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(filter === f), onclick: () => { filter = f; draw(); } }, label)));
+    const shown = GAMBITS.filter((g) => passes(g, filter));
+    clear(grid);
+    for (const side of ['w', 'b']) {
+      const list = shown.filter((g) => g.side === side);
+      if (list.length) grid.append(h('section', { class: 'stack' }, h('h2', {}, `Play as ${SIDE[side]}`, h('span', { class: 'muted small gcount' }, ` ${list.length}`)), h('div', { class: 'gambit-grid' }, list.map(card))));
+    }
+    if (!shown.length) grid.append(h('p', { class: 'muted' }, 'Nothing matches that filter.'));
+  };
+  const surprise = () => {
+    const pool = allLines().filter((l) => passes(l.gambit, filter));
+    const fresh = pool.filter((l) => lineStatus(G(), l.key, t) === 'new');
+    const pick = (fresh.length ? fresh : pool)[Math.floor(Math.random() * (fresh.length ? fresh.length : pool.length))];
+    if (pick) location.hash = `#/gambits/${pick.gambit.id}/${pick.id}/learn`;
+  };
 
   const first = due[0];
+  const lineCount = allLines().length;
   root.append(h('div', { class: 'stack gambits' },
-    h('header', { class: 'l-head' }, h('h1', {}, 'Gambits'), h('p', {}, 'Give a pawn for speed, then learn the lines until they come without thinking.')),
+    h('header', { class: 'l-head' }, h('h1', {}, 'Gambits'), h('p', {}, `${GAMBITS.length} gambits, traps and defences · ${lineCount} lines. Give a pawn for speed, then learn the lines until they come without thinking.`)),
     h('section', { class: 'panel gdue' },
       h('div', {},
         h('h2', {}, first ? `${plural(due.length, 'line')} to practise today` : 'Pick a gambit to start'),
         h('p', { class: 'muted' }, first
           ? 'Lines you missed come back first. Lines you know come back after 1, 3, 7, 14 and 30 days.'
-          : 'Each gambit has a main line, a line for when your opponent declines, and sometimes a trap. Learn a line step by step, then play it from memory. We bring it back at growing gaps.')),
-      first
-        ? h('a', { class: 'btn primary big', href: `#/gambits/${first.gambit.id}/${first.id}/drill` }, icon('play', 16), 'Practise now')
-        : h('a', { class: 'btn primary big', href: '#/gambits/queens' }, icon('play', 16), "Start with the Queen's Gambit")),
-    section('w'), section('b')));
+          : 'Each gambit has a main line, a line for when your opponent declines, and sometimes a trap. Learn a line step by step, then play it from memory.')),
+      h('div', { class: 'controls', style: { marginTop: 0 } },
+        first
+          ? h('a', { class: 'btn primary big', href: `#/gambits/${first.gambit.id}/${first.id}/drill` }, icon('play', 16), 'Practise now')
+          : h('a', { class: 'btn primary big', href: '#/gambits/queens' }, icon('play', 16), "Start with the Queen's Gambit"),
+        h('button', { class: 'big', onclick: surprise }, icon('sparkle', 16), 'Surprise me'))),
+    chips, grid));
+  draw();
   return () => {};
 }
 
@@ -67,20 +99,27 @@ function gambitPage(root, g) {
   const list = (title, items) => h('div', { class: 'stack-s' }, h('h3', {}, title), h('ul', {}, items.map((x) => h('li', {}, x))));
   const lineRow = (l) => {
     const key = lineKey(g.id, l.id); const st = lineStatus(G(), key, t); const e = G().lines[key];
+    const size = lineSize(g, l); const end = linePreview(l);
     return h('li', { class: 'gline' },
+      h('div', { class: 'gthumb sm', 'aria-hidden': 'true' }, miniBoard(end.fen, { orientation: g.side, last: end.last })),
       h('div', { class: 'gline-main' },
         h('div', { class: 'row', style: { gap: '.5rem', flexWrap: 'wrap' } }, h('b', {}, l.name), h('span', { class: `gtag ${l.kind}` }, KIND[l.kind]), h('span', { class: `gtag st-${st}` }, STATUS[st])),
         h('p', { class: 'muted small' }, l.summary),
+        h('p', { class: 'muted small gsize' }, icon('target', 12), `${plural(size.mine, 'move')} for you · ${size.plies} in all`),
         e && h('p', { class: 'muted small' }, `Played ${plural(e.runs, 'time')}, ${e.clean} clean${st === 'due' ? '' : ` · back in ${plural(Math.max(0, daysBetween(t, e.due)), 'day')}`}`)),
       h('div', { class: 'gline-actions' },
         h('a', { class: 'btn', href: `#/gambits/${g.id}/${l.id}/learn` }, icon('book', 16), 'Learn'),
         h('a', { class: 'btn primary', href: `#/gambits/${g.id}/${l.id}/drill` }, icon('target', 16), 'Play it')));
   };
+  const pv = gambitPreview(g);
   root.append(h('div', { class: 'stack gambits' },
     h('a', { class: 'back', href: '#/gambits' }, icon('prev', 14), 'All gambits'),
-    h('header', { class: 'l-head' },
-      h('h1', {}, g.name),
-      h('p', {}, `${g.tagline} You play ${SIDE[g.side]}. `, h('span', { class: `glevel l${g.level}` }, LEVELS[g.level - 1]))),
+    h('header', { class: 'l-head ghead' },
+      h('div', { class: 'gthumb lg', 'aria-hidden': 'true' }, miniBoard(pv.fen, { orientation: g.side, last: pv.last })),
+      h('div', {},
+        h('h1', {}, g.name),
+        h('p', {}, `${g.tagline} You play ${SIDE[g.side]}. `, h('span', { class: `glevel l${g.level}` }, LEVELS[g.level - 1]), g.type ? h('span', { class: `gtag ${g.type}`, style: { marginLeft: '.4rem' } }, TYPE[g.type]) : null),
+        h('p', { class: 'muted small' }, `${plural(g.lines.length, 'line')} · ${plural(totalMoves(g), 'move')} for you to learn`))),
     h('div', { class: 'gpage' },
       h('section', { class: 'panel stack' }, h('h2', {}, 'Lines'), h('ol', { class: 'glines' }, g.lines.map(lineRow))),
       h('section', { class: 'panel stack' }, h('h2', {}, 'The idea'),
@@ -108,16 +147,21 @@ function player(root, g, line, mode) {
   const timers = new Set(); let gone = false;
   const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (!gone) fn(); }, ms); timers.add(id); };
   let i = 0; // plies played so far
+  const mineTotal = steps.filter((x) => x.mine).length;
+  let celebrated = false;
   let mistakes = 0; let hints = 0; let wrongHere = 0; let hinted = false; let finished = false;
 
   const panel = h('div', { class: 'gnote', 'aria-live': 'polite' });
   const moves = h('ol', { class: 'gmoves', 'aria-label': 'Moves of the line' });
   const controls = h('div', { class: 'controls' });
+  const prog = h('div', { class: 'gprog', role: mode === 'learn' ? 'group' : 'img', 'aria-label': 'Steps of the line' });
+  const stepLabel = h('div', { class: 'gsteplabel muted small', 'aria-live': 'polite' });
   const tab = (m, label, ic) => h('a', { class: `gtab ${mode === m ? 'on' : ''}`, href: `#/gambits/${g.id}/${line.id}/${m}`, 'aria-current': mode === m ? 'page' : null }, icon(ic, 16), label);
 
   root.append(h('div', { class: 'stack gambits' },
     h('a', { class: 'back', href: `#/gambits/${g.id}` }, icon('prev', 14), g.name),
     h('div', { class: 'row between' }, h('h1', { style: { margin: 0 } }, line.name), h('div', { class: 'gtabs', role: 'navigation', 'aria-label': 'Mode' }, tab('learn', 'Learn', 'book'), tab('drill', 'Play it', 'target'))),
+    h('div', { class: 'gtrack' }, prog, stepLabel),
     h('div', { class: 'game' },
       h('div', { class: 'boardcol' }, boardEl),
       h('div', { class: 'side stack' }, h('div', { class: 'card stack' }, panel, controls), howTo(mode), h('div', { class: 'card' }, h('h2', {}, 'The line'), moves)))));
@@ -128,7 +172,20 @@ function player(root, g, line, mode) {
   const who = (s) => `${s.number}${s.color === 'w' ? '.' : '...'} ${s.san}`;
   const sideName = SIDE[g.side];
 
+  function renderProgress() {
+    clear(prog);
+    for (const x of steps) {
+      const cls = `gseg ${x.ply <= i ? 'done' : ''} ${x.ply === i ? 'cur' : ''} ${x.mine ? 'mine' : ''}`;
+      prog.append(mode === 'learn'
+        ? h('button', { type: 'button', class: cls, 'aria-label': `Go to ${who(x)}`, title: who(x), onclick: () => showLearn(x.ply) })
+        : h('span', { class: cls }));
+    }
+    const mine = steps.filter((x) => x.mine && x.ply <= i).length;
+    stepLabel.textContent = mode === 'learn' ? `Step ${i} of ${steps.length} · ${mine} of ${mineTotal} of your moves seen` : `${mine} of ${mineTotal} of your moves found`;
+  }
+
   function renderMoves() {
+    renderProgress();
     clear(moves);
     for (let k = 0; k < steps.length; k += 2) {
       const pair = [steps[k], steps[k + 1]].filter(Boolean);
@@ -152,13 +209,17 @@ function player(root, g, line, mode) {
     if (!silent && i > 0) sound(steps[i - 1]);
     const cur = steps[i - 1];
     clear(panel);
+    panel.classList.remove('enter'); void panel.offsetWidth; panel.classList.add('enter');
     if (!cur) {
       panel.append(h('b', {}, `You play ${sideName}`), h('p', {}, line.summary), h('p', { class: 'gtodo' }, 'Press Next to see the first move and why it is played.'), h('p', { class: 'muted small' }, `The green arrow is your next move as ${sideName}; a blue arrow is their reply.`));
     } else {
       panel.append(
         h('div', { class: 'gnote-head' }, h('b', { class: 'gsan' }, who(cur)), h('span', { class: `gtag ${cur.mine ? 'mine' : 'theirs'}` }, cur.mine ? 'Your move' : 'Their move')),
         h('p', {}, h('b', {}, 'Why: '), cur.note || (cur.mine ? 'A move of the line. Look at what it develops or attacks.' : 'The usual reply. See how it changes the position.')));
-      if (i === steps.length) panel.append(h('p', { class: 'muted' }, 'That is the end of the line. Now play it from memory.'));
+      if (i === steps.length) {
+        panel.append(h('div', { class: 'gdone' }, h('span', { class: 'gdone-badge' }, icon('check', 18)), h('div', {}, h('b', {}, 'You have seen the whole line'), h('p', { class: 'muted small' }, 'Now play it from memory: that is how it sticks.'))));
+        if (!celebrated && !silent) { celebrated = true; play('fanfare', 0.5); }
+      }
     }
     clear(controls);
     controls.append(
@@ -170,7 +231,6 @@ function player(root, g, line, mode) {
   }
 
   // ---------------------------------------------------------------- drill: play your side from memory
-  const mineTotal = steps.filter((x) => x.mine).length;
   const missed = new Map(); // ply -> how many times you needed help on it
   let level = 0; // hint level for the current move: 1 clue, 2 the piece, 3 the move
   const miss = (s) => missed.set(s.ply, (missed.get(s.ply) ?? 0) + 1);
@@ -182,6 +242,7 @@ function player(root, g, line, mode) {
   }
   /** The prompt: where you are, what to do now, and (when asked for) the clue. */
   function prompt(extra) {
+    panel.classList.remove('enter'); void panel.offsetWidth; panel.classList.add('enter');
     const done = steps.filter((x) => x.mine && x.ply <= i).length;
     clear(panel);
     panel.append(
