@@ -15,10 +15,10 @@ import { allLines } from '../gambits-data.js';
 const today = () => dayKey();
 const G = () => get().gambits;
 const SIDE = { w: 'White', b: 'Black' };
-const KIND = { main: 'Main line', alt: 'If they decline', trap: 'Trap' };
+const KIND = { main: 'Main line', alt: 'If they decline', trap: 'Trap', game: 'Famous game' };
 const STATUS = { new: 'New', learning: 'Learning', due: 'Due', mastered: 'Learned' };
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-const TYPE = { trap: 'Trap', defence: 'Defence' };
+const TYPE = { trap: 'Trap', defence: 'Defence', game: 'Famous game' };
 const totalMoves = (g) => g.lines.reduce((n, l) => n + lineSize(g, l).mine, 0);
 let filter = 'all'; // hub filter, kept while you move around
 
@@ -33,8 +33,8 @@ export function mount(root, params = []) {
 }
 
 // ------------------------------------------------------------------ all gambits
-const FILTERS = [['all', 'All'], ['w', 'As White'], ['b', 'As Black'], ['1', 'Beginner'], ['2', 'Intermediate'], ['3', 'Sharp'], ['trap', 'Traps']];
-const passes = (g, f) => f === 'all' || f === g.side || f === String(g.level) || (f === 'trap' && (g.type === 'trap' || g.type === 'defence'));
+const FILTERS = [['all', 'All'], ['w', 'As White'], ['b', 'As Black'], ['1', 'Beginner'], ['2', 'Intermediate'], ['3', 'Sharp'], ['trap', 'Traps'], ['game', 'Famous games']];
+const passes = (g, f) => f === 'all' || f === g.side || f === String(g.level) || (f === 'trap' && (g.type === 'trap' || g.type === 'defence')) || (f === 'game' && (g.type === 'game' || g.lines.some((l) => l.kind === 'game')));
 
 function hub(root) {
   const t = today();
@@ -76,7 +76,7 @@ function hub(root) {
   const first = due[0];
   const lineCount = allLines().length;
   root.append(h('div', { class: 'stack gambits' },
-    h('header', { class: 'l-head' }, h('h1', {}, 'Gambits'), h('p', {}, `${GAMBITS.length} gambits, traps and defences · ${lineCount} lines. Give a pawn for speed, then learn the lines until they come without thinking.`)),
+    h('header', { class: 'l-head' }, h('h1', {}, 'Gambits'), h('p', {}, `${GAMBITS.length} gambits, traps, defences and famous games · ${lineCount} lines. Give a pawn for speed, then learn the lines until they come without thinking.`)),
     h('section', { class: 'panel gdue' },
       h('div', {},
         h('h2', {}, first ? `${plural(due.length, 'line')} to practise today` : 'Pick a gambit to start'),

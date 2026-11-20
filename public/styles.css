@@ -935,3 +935,5 @@ button.gseg { cursor: pointer; } button.gseg:hover { background: color-mix(in sr
 .gdone-badge { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); animation: pop-in 520ms var(--spring) both; flex: none; }
 @media (max-width: 520px) { .ghead { flex-direction: column; align-items: flex-start; } .gthumb.lg { width: 120px; } }
 @media (prefers-reduced-motion: reduce) { .gnote.enter > *, .gdone-badge { animation: none; } .gseg, .gthumb { transition: none; } }
+
+.gtag.game { background: color-mix(in srgb, var(--info) 20%, transparent); color: var(--info); }
