@@ -4,6 +4,9 @@ import { Chess } from 'chess.js';
 import { h, clear } from './util.js';
 
 const full = (c) => (c === 'w' ? 'white' : 'black');
+const ROLE = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
+const calmMotion = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ANIM_MS = 220; // a move slides in about a fifth of a second, like the big sites
 
 export function legalDests(chess) {
   const dests = new Map();
@@ -31,7 +34,7 @@ export class Board {
       fen: this.chess.fen(),
       orientation: full(orientation),
       coordinates: true,
-      animation: { enabled: !calm, duration: 240 },
+      animation: { enabled: !calm, duration: ANIM_MS },
       highlight: { lastMove: true, check: true },
       draggable: { showGhost: true, distance: 3 },
       selectable: { enabled: true },
@@ -46,8 +49,10 @@ export class Board {
 
   /** Show a FEN. `lastMove` = [from,to]. `animate: false` jumps without sliding the pieces (used when stepping far through history). */
   setPosition(fen, { lastMove = null, animate = true } = {}) {
+    const prev = this.chess;
     this.chess = new Chess(fen);
     this.lastMove = lastMove;
+    if (animate && lastMove) this.#flourish(prev, this.chess, lastMove);
     if (!animate) this.cg.set({ animation: { enabled: false } });
     this.#sync();
     if (!animate) { const calm = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches; this.cg.set({ animation: { enabled: !calm } }); }
@@ -66,8 +71,10 @@ export class Board {
 
   /** Apply a move already known to be legal (remote or engine move). Returns the chess.js move. */
   applyMove(move) {
+    const prev = new Chess(this.chess.fen()); // the position before, only to see what the move captured
     const m = this.chess.move(move);
     this.lastMove = [m.from, m.to];
+    this.#flourish(prev, this.chess, this.lastMove);
     this.#sync();
     return m;
   }
@@ -82,6 +89,46 @@ export class Board {
       ...arrows.map((a) => ({ orig: a.from, dest: a.to, brush: a.brush ?? 'green' })),
       ...badges.map((b) => ({ orig: b.square, customSvg: { html: b.svg, center: 'orig' } })),
     ]);
+  }
+
+  /** Where a square is inside the board, as whole squares from the top left (depends on which side is at the bottom). */
+  #cell(sq) {
+    const f = sq.charCodeAt(0) - 97; const r = Number(sq[1]) - 1; const flip = this.orientation === 'b';
+    return [flip ? 7 - f : f, flip ? r : 7 - r];
+  }
+
+  /** The small touches of a move: a captured piece shrinks away, and the piece that moved settles with a tiny bounce. */
+  #flourish(prev, next, [from, to]) {
+    if (calmMotion() || !this.el.isConnected) return;
+    const mover = next.get(to); if (!mover) return;
+    // a capture (en passant takes the pawn beside, not on the target square)
+    let at = to; let victim = prev.get(to);
+    if (mover.type === 'p' && from[0] !== to[0] && !victim) { at = to[0] + from[1]; victim = prev.get(at); }
+    const board = this.el.querySelector('cg-board:not(.cap-layer)');
+    if (!board) return;
+    if (victim && victim.color !== mover.color) {
+      const [x, y] = this.#cell(at);
+      const ghost = h('piece', { class: `${ROLE[victim.type]} ${full(victim.color)} cap-ghost` });
+      ghost.style.transform = `translate(${x * 100}%, ${y * 100}%)`;
+      // chessground owns everything inside its board and tidies up strangers, so the ghost lives in its own layer on top
+      let layer = this.el.querySelector('.cap-layer');
+      if (!layer) { layer = h('cg-board', { class: 'cap-layer' }); (this.el.querySelector('cg-container') ?? this.el).append(layer); }
+      layer.append(ghost);
+      setTimeout(() => ghost.remove(), 320);
+    }
+    // after the slide, find the piece standing on the target square and let it settle
+    setTimeout(() => {
+      if (!board.isConnected) return;
+      const size = board.clientWidth / 8; const [x, y] = this.#cell(to);
+      for (const el of board.querySelectorAll('piece:not(.cap-ghost)')) {
+        const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(el.style.transform);
+        if (m && Math.abs(Number(m[1]) - x * size) < 3 && Math.abs(Number(m[2]) - y * size) < 3) {
+          el.classList.remove('land'); void el.offsetWidth; el.classList.add('land');
+          setTimeout(() => el.classList.remove('land'), 260);
+          break;
+        }
+      }
+    }, ANIM_MS + 10);
   }
 
   #sync() {

@@ -937,3 +937,16 @@ button.gseg { cursor: pointer; } button.gseg:hover { background: color-mix(in sr
 @media (prefers-reduced-motion: reduce) { .gnote.enter > *, .gdone-badge { animation: none; } .gseg, .gthumb { transition: none; } }
 
 .gtag.game { background: color-mix(in srgb, var(--info) 20%, transparent); color: var(--info); }
+
+/* piece motion, a little closer to the big sites */
+cg-board piece.cap-ghost { pointer-events: none; z-index: 8; animation: cap-out 260ms cubic-bezier(.3, .7, .4, 1) forwards; }
+@keyframes cap-out { 0% { opacity: 1; scale: 1; rotate: 0deg; } 100% { opacity: 0; scale: .45; rotate: 14deg; } }
+cg-board piece.land { animation: piece-land 240ms cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes piece-land { 0% { scale: 1.14; } 100% { scale: 1; } }
+cg-board piece.dragging { scale: 1.16; }
+cg-board square.move-dest { animation: dest-in 140ms ease-out; }
+@keyframes dest-in { from { opacity: 0; scale: .5; } to { opacity: 1; scale: 1; } }
+cg-board square.selected { animation: sel-in 140ms ease-out; }
+@keyframes sel-in { from { opacity: .4; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { cg-board piece.cap-ghost, cg-board piece.land, cg-board square.move-dest, cg-board square.selected { animation: none !important; } }
+cg-board.cap-layer { background: none !important; pointer-events: none; z-index: 3; }
